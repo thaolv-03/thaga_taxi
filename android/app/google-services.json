@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "569262818284",
+    "project_id": "thagataxi-bfbd5",
+    "storage_bucket": "thagataxi-bfbd5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:569262818284:android:9a1ab384cf3670876076c9",
+        "android_client_info": {
+          "package_name": "com.thagataxi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQHLMxxl_51wYOCCu9JDgrbkshfrKtMLM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
