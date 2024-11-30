@@ -380,33 +380,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget buildProfileTile() {
     User? user = FirebaseAuth.instance.currentUser;
-    return StreamBuilder<QuerySnapshot>(
+    if (user == null) {
+      return Center(child: Text('Người dùng chưa đăng nhập'));
+    }
+    print(user.uid);
+    return StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
-            .where('uid', isEqualTo: user!.uid)
+            .doc(user.uid)
             .snapshots(),
+            
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-                child:
-                    CircularProgressIndicator()); // Hiển thị loading khi đang tải
+            return Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
             return Center(child: Text('Đã có lỗi xảy ra!'));
           }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!snapshot.hasData || !snapshot.data!.exists) {
             return Center(child: Text('Không tìm thấy thông tin người dùng'));
           }
 
-          // Lấy dữ liệu người dùng từ Firestore
-          var userData =
-              snapshot.data!.docs.first.data() as Map<String, dynamic>;
-            print(userData); // In ra dữ liệu để kiểm tra
+          // Lấy dữ liệu tài liệu từ Firestore
+          var userData = snapshot.data!.data() as Map<String, dynamic>;
+          print("User data: $userData");
 
-          String name =
-              userData['name'] ?? 'Tên người dùng'; // Lấy tên người dùng
-          String profileImage = userData['image'] ?? ''; // Lấy URL hình ảnh
+          String name = userData['name'] ?? 'Tên người dùng';
+          String profileImage = userData['image'] ?? '';
 
           return Positioned(
               top: 60,
