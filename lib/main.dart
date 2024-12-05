@@ -7,8 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:here_sdk/core.dart';
 import 'package:here_sdk/core.engine.dart';
 import 'package:here_sdk/core.errors.dart';
+import 'package:provider/provider.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
 import 'package:thaga_taxi/firebase_options.dart';
+import 'package:thaga_taxi/provider/user_data_provider.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/views/profile_setting.dart';
 
@@ -26,7 +28,7 @@ void main() async {
     ),
   );
 
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 void _initializeHERESDK() async {
@@ -60,8 +62,9 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-          textTheme: GoogleFonts.interTextTheme(textTheme),
-          scaffoldBackgroundColor: Colors.white),
+        textTheme: GoogleFonts.interTextTheme(textTheme),
+        scaffoldBackgroundColor: Colors.white,
+      ),
       home: const LoginScreen(),
     );
   }

@@ -10,10 +10,12 @@ import 'package:here_sdk/core.dart';
 import 'package:here_sdk/core.errors.dart';
 import 'package:here_sdk/mapview.dart';
 import 'package:here_sdk/search.dart';
+import 'package:provider/provider.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
 import 'package:thaga_taxi/utils/app_colors.dart';
 import 'dart:ui' as ui;
 import 'package:geolocator/geolocator.dart';
+import 'package:thaga_taxi/views/customer_profile_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/views/profile_setting.dart';
 
@@ -37,9 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String _title = ""; // Tiêu đề mặc định
   String _sourceAddress = "Đang tải vị trí hiện tại...";
   String focusedField = "destination";
-  double _sheetChildSize = 0.75;
+  double _sheetChildSize = 0.6;
   bool showSourceField = true;
+  bool isSourceFocused = false;
+  bool isDestinationFocused = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  Timer? _cameraUpdateTimer;
 
   @override
   void initState() {
@@ -52,12 +57,25 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _initializeSearchEngine();
     _moveToCurrentLocation();
+
+    sourceFocusNode.addListener(() {
+      setState(() {
+        isSourceFocused = sourceFocusNode.hasFocus;
+      });
+    });
+    destinationFocusNode.addListener(() {
+      setState(() {
+        isDestinationFocused = destinationFocusNode.hasFocus;
+      });
+    });
   }
 
   @override
   void dispose() {
     destinationFocusNode.dispose();
+    destinationController.dispose();
     sourceFocusNode.dispose();
+    sourceController.dispose();
     super.dispose();
   }
 
@@ -67,28 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } on InstantiationException catch (e) {
       print('Error initializing SearchEngine: $e');
     }
-  }
-
-  void _getSuggestionsForDestination(String query) {
-    if (query.isEmpty) return;
-
-    final centerGeoCoordinates = GeoCoordinates(15.9790873, 108.2491083);
-    final queryArea = TextQueryArea.withCenter(centerGeoCoordinates);
-    final searchOptions = SearchOptions()
-      ..languageCode = LanguageCode.viVn
-      ..maxItems = 5;
-
-    _searchEngine
-        .suggestByText(TextQuery.withArea(query, queryArea), searchOptions,
-            (SearchError? error, List<Suggestion>? suggestions) {
-      if (error != null) {
-        print("Autosuggest Error: ${error.toString()}");
-        return;
-      }
-      setState(() {
-        _suggestionsForDestination = suggestions ?? [];
-      });
-    });
   }
 
   void _getSuggestionsForSource(String query) {
@@ -113,6 +109,28 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _getSuggestionsForDestination(String query) {
+    if (query.isEmpty) return;
+
+    final centerGeoCoordinates = GeoCoordinates(15.9790873, 108.2491083);
+    final queryArea = TextQueryArea.withCenter(centerGeoCoordinates);
+    final searchOptions = SearchOptions()
+      ..languageCode = LanguageCode.viVn
+      ..maxItems = 5;
+
+    _searchEngine
+        .suggestByText(TextQuery.withArea(query, queryArea), searchOptions,
+            (SearchError? error, List<Suggestion>? suggestions) {
+      if (error != null) {
+        print("Autosuggest Error: ${error.toString()}");
+        return;
+      }
+      setState(() {
+        _suggestionsForDestination = suggestions ?? [];
+      });
+    });
+  }
+
   void _handleSuggestionSourceTap(Suggestion suggestion) async {
     final place = suggestion.place;
     if (place != null) {
@@ -122,15 +140,25 @@ class _HomeScreenState extends State<HomeScreen> {
         // _hereMapController.camera.lookAtPoint(geoCoordinates);
 
         // Zoom vào địa điểm với mức độ gần hơn (khoảng cách camera gần hơn mặt đất)
-        const double distanceToEarthInMeters = 500;
-        MapMeasure mapMeasureZoom =
-            MapMeasure(MapMeasureKind.distance, distanceToEarthInMeters);
+        _cameraUpdateTimer = Timer(Duration(milliseconds: 500), () {
+          const double offsetInDegrees = 0.0007;
+          final adjustedGeoCoordinates = GeoCoordinates(
+            geoCoordinates.latitude - offsetInDegrees,
+            geoCoordinates.longitude,
+          );
 
-        // Cập nhật lại camera sau khi di chuyển đến vị trí mới với mức zoom gần hơn
-        _hereMapController.camera
-            .lookAtPointWithMeasure(geoCoordinates, mapMeasureZoom);
-        // _animateCamera(geoCoordinates, mapMeasureZoom);
+          _hereMapController.camera.lookAtPoint(adjustedGeoCoordinates);
 
+          // Zoom vào địa điểm với mức độ gần hơn (khoảng cách camera gần hơn mặt đất)
+          const double distanceToEarthInMeters = 500;
+          MapMeasure mapMeasureZoom =
+              MapMeasure(MapMeasureKind.distance, distanceToEarthInMeters);
+
+          // Cập nhật lại camera sau khi di chuyển đến vị trí mới với mức zoom gần hơn
+          _hereMapController.camera
+              .lookAtPointWithMeasure(adjustedGeoCoordinates, mapMeasureZoom);
+          // _animateCamera(adjustedGeoCoordinates, mapMeasureZoom);
+        });
         // Xóa tất cả các marker trước đó (trừ marker vị trí hiện tại)
         _mapMarkers.forEach((key, marker) {
           _hereMapController.mapScene.removeMapMarker(marker);
@@ -159,31 +187,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _handleSuggestionDestinationTap(Suggestion suggestion) async {
+    // Hủy Timer cũ nếu đang chạy
+    _cameraUpdateTimer?.cancel();
+
     final place = suggestion.place;
     if (place != null) {
       final geoCoordinates = place.geoCoordinates;
       if (geoCoordinates != null) {
         // Di chuyển xuống phía dưới một chút so với vị trí hiện tại
-        const double offsetInDegrees =
-            0.0007; // Điều chỉnh giá trị này để phù hợp
-        final adjustedGeoCoordinates = GeoCoordinates(
-          geoCoordinates.latitude - offsetInDegrees,
-          geoCoordinates.longitude,
-        );
+        // const double offsetInDegrees = 0.0007;
+        // // const double offsetInDegrees = 0.0;
+        // final adjustedGeoCoordinates = GeoCoordinates(
+        //   geoCoordinates.latitude - offsetInDegrees,
+        //   geoCoordinates.longitude,
+        // );
 
-        // Điều hướng camera tới tọa độ được điều chỉnh
-        _hereMapController.camera.lookAtPoint(adjustedGeoCoordinates);
+        // // Điều hướng camera tới tọa độ được điều chỉnh
+        // _hereMapController.camera.lookAtPoint(adjustedGeoCoordinates);
 
-        // Zoom vào địa điểm với mức độ gần hơn (khoảng cách camera gần hơn mặt đất)
-        const double distanceToEarthInMeters = 500;
-        MapMeasure mapMeasureZoom =
-            MapMeasure(MapMeasureKind.distance, distanceToEarthInMeters);
+        // Khởi tạo Timer mới để chỉ cập nhật camera sau 500ms
+        _cameraUpdateTimer = Timer(Duration(milliseconds: 500), () {
+          const double offsetInDegrees = 0.0007;
+          final adjustedGeoCoordinates = GeoCoordinates(
+            geoCoordinates.latitude - offsetInDegrees,
+            geoCoordinates.longitude,
+          );
 
-        // Cập nhật lại camera sau khi di chuyển đến vị trí mới với mức zoom gần hơn
-        _hereMapController.camera
-            .lookAtPointWithMeasure(adjustedGeoCoordinates, mapMeasureZoom);
-        // _animateCamera(adjustedGeoCoordinates, mapMeasureZoom);
+          _hereMapController.camera.lookAtPoint(adjustedGeoCoordinates);
 
+          // Zoom vào địa điểm với mức độ gần hơn (khoảng cách camera gần hơn mặt đất)
+          const double distanceToEarthInMeters = 500;
+          MapMeasure mapMeasureZoom =
+              MapMeasure(MapMeasureKind.distance, distanceToEarthInMeters);
+
+          // Cập nhật lại camera sau khi di chuyển đến vị trí mới với mức zoom gần hơn
+          _hereMapController.camera
+              .lookAtPointWithMeasure(adjustedGeoCoordinates, mapMeasureZoom);
+          // _animateCamera(adjustedGeoCoordinates, mapMeasureZoom);
+        });
         // Xóa tất cả các marker trước đó (trừ marker vị trí hiện tại)
         _mapMarkers.forEach((key, marker) {
           _hereMapController.mapScene.removeMapMarker(marker);
@@ -245,7 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (places != null && places.isNotEmpty) {
         setState(() {
-          _sourceAddress = places.first.address.addressText;
+          // _sourceAddress = places.first.address.addressText;
+          sourceController.text = places.first.address.addressText;
         });
       }
     });
@@ -269,6 +311,35 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           buildDraggableBottomSheet(),
           buildProfileTile(),
+          Positioned(
+            top: 140,
+            left: 20,
+            child: InkWell(
+              onTap: () {
+                Get.off(() => LoginScreen());
+              },
+              child: Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      spreadRadius: 4,
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: AppColors.blueColor,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -379,95 +450,79 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget buildProfileTile() {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return Center(child: Text('Người dùng chưa đăng nhập'));
-    }
-    print(user.uid);
-    return StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .snapshots(),
-            
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Đã có lỗi xảy ra!'));
-          }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return Center(child: Text('Không tìm thấy thông tin người dùng'));
-          }
+    final authController = Get.find<AuthController>();
 
-          // Lấy dữ liệu tài liệu từ Firestore
-          var userData = snapshot.data!.data() as Map<String, dynamic>;
-          print("User data: $userData");
+    return Obx(
+      () {
+        final user = authController.userData;
 
-          String name = userData['name'] ?? 'Tên người dùng';
-          String profileImage = userData['image'] ?? '';
+        if (user.isEmpty) {
+          return Center(child: Text('Không tìm thấy thông tin người dùng'));
+        }
 
-          return Positioned(
-              top: 60,
-              left: 20,
-              right: 20,
-              child: Container(
-                width: Get.width,
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        _scaffoldKey.currentState?.openDrawer();
-                      },
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          image: DecorationImage(
-                            image: profileImage.isNotEmpty
-                                ? NetworkImage(
-                                    profileImage) // Sử dụng URL hình ảnh từ Firestore
-                                : AssetImage('assets/person.png')
-                                    as ImageProvider, // Nếu không có ảnh thì dùng ảnh mặc định
-                            fit: BoxFit.fill,
-                          ),
-                        ),
+        String name = user['name'] ?? 'Tên người dùng';
+        String profileImage = user['image'] ?? '';
+        return Positioned(
+          top: 60,
+          left: 20,
+          right: 20,
+          child: Container(
+            width: Get.width,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    _scaffoldKey.currentState?.openDrawer();
+                  },
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                        image: profileImage.isNotEmpty
+                            ? NetworkImage(
+                                profileImage) // Sử dụng URL hình ảnh từ Firestore
+                            : AssetImage('assets/person.png')
+                                as ImageProvider, // Nếu không có ảnh thì dùng ảnh mặc định
+                        fit: BoxFit.fill,
                       ),
                     ),
-                    const SizedBox(
-                      width: 15,
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        RichText(
-                            text: TextSpan(children: [
-                          TextSpan(
-                              text: 'Chào buổi sáng, ',
-                              style:
-                                  TextStyle(color: Colors.black, fontSize: 16)),
-                          TextSpan(
-                              text: name,
-                              style: TextStyle(
-                                  color: AppColors.blueColor,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold))
-                        ])),
-                        Text(
-                          'Tìm kiếm điểm đến...',
-                          style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black),
-                        ),
-                      ],
-                    )
-                  ],
+                  ),
                 ),
-              ));
-        });
+                const SizedBox(
+                  width: 15,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.inter(
+                          color: AppColors.blueColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Tìm kiếm điểm đến...',
+                        style: GoogleFonts.inter(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black),
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget buildTextFieldForSource() {
@@ -499,26 +554,28 @@ class _HomeScreenState extends State<HomeScreen> {
             controller: sourceController,
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (value) {
-              _sheetChildSize = 0.37;
+              setState(() {
+                _changeSheetSize(0.37);
+              });
             },
             onTap: () {
               setState(() {
+                // Chọn toàn bộ văn bản khi nhấn vào
+                sourceController.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: sourceController.text.length,
+                );
                 focusedField = "source";
                 _title = "Điểm đón";
-                if (_sheetChildSize != 0.75) {
-                  _sheetChildSize = 0.75;
-                }
+                _changeSheetSize(0.6);
               });
             },
             onChanged: (value) {
-              // Kiểm tra nếu chuỗi trống và cập nhật danh sách gợi ý
               if (value.isEmpty) {
                 setState(() {
-                  _suggestionsForSource =
-                      []; // Xóa hết danh sách gợi ý khi không có văn bản
+                  _suggestionsForSource = [];
                 });
               } else {
-                // Gọi hàm tìm kiếm hoặc cập nhật gợi ý khi có văn bản
                 _getSuggestionsForSource(value);
               }
             },
@@ -537,10 +594,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.blueColor,
                 ),
               ),
-              suffixIcon: const Padding(
-                padding: EdgeInsets.only(right: 10),
-                child: Icon(Icons.search),
-              ),
+              suffixIcon: isSourceFocused && sourceController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          sourceController.clear();
+                          _suggestionsForSource = [];
+                        });
+                      },
+                    )
+                  : null,
               border: InputBorder.none,
               hintText: _sourceAddress,
               hintStyle: const TextStyle(color: Colors.black54),
@@ -550,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (_suggestionsForSource.isNotEmpty)
           Container(
             width: Get.width,
-            constraints: BoxConstraints(maxHeight: 200),
+            constraints: const BoxConstraints(maxHeight: 200),
             margin: const EdgeInsets.only(top: 5),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -613,15 +677,19 @@ class _HomeScreenState extends State<HomeScreen> {
             controller: destinationController,
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (value) {
-              _sheetChildSize = 0.37;
+              setState(() {
+                _changeSheetSize(0.37);
+              });
             },
             onTap: () {
               setState(() {
+                destinationController.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: destinationController.text.length,
+                );
                 focusedField = "destination";
                 _title = "Điểm đến";
-                if (_sheetChildSize != 0.75) {
-                  _sheetChildSize = 0.75;
-                }
+                _changeSheetSize(0.6);
               });
             },
             onChanged: (value) {
@@ -651,10 +719,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppColors.blueColor,
                   ),
                 ),
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Icon(Icons.search),
-                ),
+                suffixIcon: isDestinationFocused &&
+                        destinationController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            destinationController.clear();
+                            _suggestionsForDestination = [];
+                          });
+                        },
+                      )
+                    : null,
                 border: InputBorder.none,
                 hintText: 'Tìm kiếm điểm đến...',
                 hintStyle: TextStyle(color: Colors.black54)),
@@ -697,11 +773,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _changeSheetSize(double size) {
+    setState(() {
+      _sheetChildSize = size;
+    });
+  }
+
   Widget buildDraggableBottomSheet() {
     return DraggableScrollableSheet(
       initialChildSize: _sheetChildSize,
-      minChildSize: 0.37,
-      maxChildSize: 0.75,
+      // minChildSize: 0.37,
+      minChildSize: _sheetChildSize,
+      // maxChildSize: 0.75,
+      maxChildSize: _sheetChildSize,
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -885,34 +969,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildConfirmBottomSheet() {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        width: Get.width * 0.8,
-        height: 25,
-        decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                spreadRadius: 4,
-                blurRadius: 10,
-              ),
-            ],
-            borderRadius: BorderRadius.only(
-                topRight: Radius.circular(12), topLeft: Radius.circular(12))),
-        child: Center(
-          child: Container(
-            width: Get.width * 0.37,
-            height: 4,
-            color: Colors.black45,
-          ),
-        ),
-      ),
-    );
-  }
-
   buildDrawerItem({
     required String title,
     required Function onPressed,
@@ -960,100 +1016,127 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   buildDrawer() {
-    return Drawer(
-      child: Column(
-        children: [
-          Container(
-            height: 150,
-            child: DrawerHeader(
-              padding: EdgeInsets.symmetric(horizontal: 25),
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        image: AssetImage('assets/person.png'),
-                        fit: BoxFit.fill,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 15,
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+    final authController = Get.find<AuthController>();
+
+    return Obx(
+      () {
+        final user = authController.userData;
+
+        if (user.isEmpty) {
+          return Center(child: Text('Không tìm thấy thông tin người dùng'));
+        }
+
+        String name = user['name'] ?? 'Tên người dùng';
+        String profileImage = user['image'] ?? '';
+        return Drawer(
+          backgroundColor: Colors.white,
+          child: Column(
+            children: [
+              Container(
+                height: 150,
+                child: DrawerHeader(
+                  padding: EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
                     children: [
-                      Text(
-                        'Chào buổi sáng, ',
-                        style: GoogleFonts.inter(
-                            color: Colors.black.withOpacity(0.28),
-                            fontSize: 14),
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          image: DecorationImage(
+                            image: profileImage.isNotEmpty
+                                ? NetworkImage(
+                                    profileImage) // Sử dụng URL hình ảnh từ Firestore
+                                : AssetImage('assets/person.png')
+                                    as ImageProvider,
+                            fit: BoxFit.fill,
+                          ),
+                        ),
                       ),
-                      Text(
-                        'Thao Le Van',
-                        style: GoogleFonts.inter(
-                          color: Colors.black,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(
+                        width: 15,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Chào buổi sáng, ',
+                              style: GoogleFonts.inter(
+                                  color: Colors.black.withOpacity(0.28),
+                                  fontSize: 16),
+                            ),
+                            Text(
+                              name,
+                              style: GoogleFonts.inter(
+                                color: AppColors.blueColor,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(
+                height: 10,
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 30),
+                child: Column(
+                  children: [
+                    buildDrawerItem(
+                      title: 'Thiết lập hồ sơ',
+                      onPressed: () => Get.to(
+                        () => ProfileSettingScreen(),
+                      ),
+                    ),
+                    buildDrawerItem(
+                      title: 'Hồ sơ khách hàng',
+                      onPressed: () => Get.to(
+                        () => CustomerProfileScreen(),
+                      ),
+                    ),
+                    buildDrawerItem(
+                      title: 'Lịch sử thanh toán',
+                      onPressed: () => {},
+                    ),
+                    buildDrawerItem(
+                      title: 'Lịch sử di chuyển',
+                      onPressed: () => {},
+                      isVisible: true,
+                    ),
+                    buildDrawerItem(
+                      title: 'Cài đặt',
+                      onPressed: () => {},
+                    ),
+                    buildDrawerItem(
+                      title: 'Hỗ trợ',
+                      onPressed: () => {},
+                    ),
+                    buildDrawerItem(
+                      title: 'Đăng xuất',
+                      onPressed: () async {
+                        await AuthController().signOut();
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => LoginScreen()));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(
-            height: 10,
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              children: [
-                buildDrawerItem(
-                  title: 'Thiết lập hồ sơ',
-                  onPressed: () => Get.to(
-                    () => ProfileSettingScreen(),
-                  ),
-                ),
-                buildDrawerItem(
-                  title: 'Hồ sơ khách hàng',
-                  onPressed: () => {},
-                ),
-                buildDrawerItem(
-                  title: 'Lịch sử thanh toán',
-                  onPressed: () => {},
-                ),
-                buildDrawerItem(
-                  title: 'Lịch sử di chuyển',
-                  onPressed: () => {},
-                  isVisible: true,
-                ),
-                buildDrawerItem(
-                  title: 'Cài đặt',
-                  onPressed: () => {},
-                ),
-                buildDrawerItem(
-                  title: 'Hỗ trợ',
-                  onPressed: () => {},
-                ),
-                buildDrawerItem(
-                  title: 'Đăng xuất',
-                  onPressed: () async {
-                    await AuthController().signOut();
-                    Navigator.pushReplacement(context,
-                        MaterialPageRoute(builder: (context) => LoginScreen()));
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

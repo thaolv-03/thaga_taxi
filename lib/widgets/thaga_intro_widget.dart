@@ -22,8 +22,7 @@ Widget thagaIntroWidget() {
   );
 }
 
-Widget thagaIntroWidgetWithoutLogos(
-    {String title = "Profile Settings", String? subtitle}) {
+Widget thagaIntroWidgetWithoutLogos(String title, String? subtitle) {
   return Container(
     width: Get.width,
     decoration: BoxDecoration(
@@ -34,29 +33,32 @@ Widget thagaIntroWidgetWithoutLogos(
     ),
     height: Get.height * 0.3,
     child: Container(
-        height: Get.height * 0.1,
-        width: Get.width,
-        margin: EdgeInsets.only(bottom: Get.height * 0.065),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
+      height: Get.height * 0.1,
+      width: Get.width,
+      margin: EdgeInsets.only(bottom: Get.height * 0.035, left: 90),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-            if (subtitle != null)
-              Text(
-                subtitle,
-                style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white),
+          ),
+          if (subtitle != null)
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: Colors.white,
               ),
-          ],
-        )),
+            ),
+        ],
+      ),
+    ),
   );
 }

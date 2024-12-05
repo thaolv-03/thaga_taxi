@@ -25,11 +25,27 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
   TextEditingController homeController = TextEditingController();
   TextEditingController jobController = TextEditingController();
   TextEditingController companyController = TextEditingController();
+
   GlobalKey<FormState> formKey = GlobalKey<FormState>();
   AuthController authController = Get.find<AuthController>();
 
   final ImagePicker _picker = ImagePicker();
   File? selectedImage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Lấy dữ liệu ban đầu từ AuthController để hiển thị
+    final user = authController.userData;
+    if (user.isNotEmpty) {
+      nameController.text = user['name'] ?? '';
+      emailController.text = user['email'] ?? '';
+      homeController.text = user['home'] ?? '';
+      jobController.text = user['job'] ?? '';
+      companyController.text = user['company'] ?? '';
+    }
+  }
+
   getImage(ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
@@ -41,184 +57,230 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: Get.height * 0.4,
-              child: Stack(
-                children: [
-                  thagaIntroWidgetWithoutLogos(),
-                  Positioned(
-                    top: 80,
-                    left: 30,
-                    child: InkWell(
-                      onTap: () {
-                        Get.off(() => HomeScreen());
-                      },
-                      child: Container(
-                        width: 45,
-                        height: 45,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        child: Icon(
-                          Icons.arrow_back,
-                          color: Colors.blue,
-                          size: 20,
+      body: Obx(
+        () {
+          final user = authController.userData;
+
+          if (user.isEmpty) {
+            return Center(child: Text('Không tìm thấy thông tin người dùng'));
+          }
+
+          String profileImage = user['image'] ?? '';
+
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: Get.height * 0.4,
+                  child: Stack(
+                    children: [
+                      thagaIntroWidgetWithoutLogos("Thiết lập hồ sơ", ""),
+                      Positioned(
+                        top: 80,
+                        left: 30,
+                        child: InkWell(
+                          onTap: () {
+                            Get.off(() => HomeScreen());
+                          },
+                          child: Container(
+                            width: 45,
+                            height: 45,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: InkWell(
-                      onTap: () {
-                        getImage(ImageSource.gallery);
-                      },
-                      child: selectedImage == null
-                          ? Container(
-                              width: 120,
-                              height: 120,
-                              margin: EdgeInsets.only(bottom: 40),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color.fromARGB(255, 255, 255, 255),
-                                boxShadow: [
-                                  BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      spreadRadius: 3,
-                                      blurRadius: 3)
-                                ],
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  Icons.camera_alt_outlined,
-                                  size: 40,
-                                  color: AppColors.blueColor,
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: InkWell(
+                          onTap: () {
+                            getImage(ImageSource.gallery);
+                          },
+                          child: selectedImage == null
+                              ? (profileImage.isNotEmpty
+                                  ? Container(
+                                      width: 120,
+                                      height: 120,
+                                      margin: EdgeInsets.only(bottom: 40),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        image: DecorationImage(
+                                          image: NetworkImage(profileImage),
+                                          fit: BoxFit.fill,
+                                        ),
+                                        color:
+                                            Color.fromARGB(255, 255, 255, 255),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.05),
+                                            spreadRadius: 3,
+                                            blurRadius: 3,
+                                          )
+                                        ],
+                                      ),
+                                    )
+                                  : Container(
+                                      width: 120,
+                                      height: 120,
+                                      margin: EdgeInsets.only(bottom: 40),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color:
+                                            Color.fromARGB(255, 255, 255, 255),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.05),
+                                            spreadRadius: 3,
+                                            blurRadius: 3,
+                                          )
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 40,
+                                          color: AppColors.blueColor,
+                                        ),
+                                      ),
+                                    ))
+                              : Container(
+                                  width: 120,
+                                  height: 120,
+                                  margin: EdgeInsets.only(bottom: 40),
+                                  decoration: BoxDecoration(
+                                    image: DecorationImage(
+                                      image: FileImage(selectedImage!),
+                                      fit: BoxFit.fill,
+                                    ),
+                                    shape: BoxShape.circle,
+                                    color: Color.fromARGB(255, 255, 255, 255),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        spreadRadius: 3,
+                                        blurRadius: 3,
+                                      )
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            )
-                          : Container(
-                              width: 120,
-                              height: 120,
-                              margin: EdgeInsets.only(bottom: 40),
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                    image: FileImage(selectedImage!),
-                                    fit: BoxFit.fill),
-                                shape: BoxShape.circle,
-                                color: Color.fromARGB(255, 255, 255, 255),
-                                boxShadow: [
-                                  BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      spreadRadius: 3,
-                                      blurRadius: 3)
-                                ],
-                              ),
-                            ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(
+                  height: 0,
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 23),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      children: [
+                        TextFieldWidget('Họ và tên', nameController,
+                            (String? input) {
+                          if (input!.isEmpty) {
+                            return 'Tên là bắt buộc!';
+                          }
+                          return null;
+                        }),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        TextFieldWidget('Email', emailController,
+                            (String? input) {
+                          if (input!.isEmpty) {
+                            return 'Email là bắt buộc!';
+                          }
+                          if (!input.contains('@')) {
+                            return 'Vui lòng nhập email hợp lệ!';
+                          }
+                          return null;
+                        }),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        TextFieldWidget('Địa chỉ', homeController,
+                            (String? input) {
+                          if (input!.isEmpty) {
+                            return 'Địa chỉ là bắt buộc!';
+                          }
+                          return null;
+                        }),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        TextFieldWidget('Công việc', jobController,
+                            (String? input) {
+                          if (input!.isEmpty) {
+                            return 'Công việc là bắt buộc!';
+                          }
+                          return null;
+                        }),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        TextFieldWidget('Công ty', companyController,
+                            (String? input) {
+                          if (input!.isEmpty) {
+                            return 'Công ty là bắt buộc!';
+                          }
+                          return null;
+                        }),
+                        const SizedBox(
+                          height: 30,
+                        ),
+                        Obx(() => authController.isProfileUploading.value
+                            ? Center(
+                                child: CircularProgressIndicator(),
+                              )
+                            : submitButton('Lưu thông tin', () {
+                                // formKey.currentState!.validate();
+                                if (!formKey.currentState!.validate()) {
+                                  return;
+                                }
+
+                                if (selectedImage == null &&
+                                    profileImage.isEmpty) {
+                                  Get.snackbar('Cảnh báo',
+                                      'Vui lòng thêm ảnh của bạn!');
+                                  return;
+                                }
+                                authController.isProfileUploading(true);
+
+                                authController.storeUserInfo(
+                                  selectedImage, // Dùng ảnh mới (nếu có)
+                                  nameController.text,
+                                  emailController.text,
+                                  homeController.text,
+                                  jobController.text,
+                                  companyController.text,
+                                  imageUrl:
+                                      profileImage, // Dùng ảnh cũ nếu không có ảnh mới
+                                );
+                              })),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(
-              height: 0,
-            ),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 23),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  children: [
-                    TextFieldWidget('Họ và tên', nameController,
-                        (String? input) {
-                      if (input!.isEmpty) {
-                        return 'Tên là bắt buộc!';
-                      }
-                      return null;
-                    }),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    TextFieldWidget('Email', emailController, (String? input) {
-                      if (input!.isEmpty) {
-                        return 'Email là bắt buộc!';
-                      }
-                      if (!input.contains('@')) {
-                        return 'Vui lòng nhập email hợp lệ!';
-                      }
-                      return null;
-                    }),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    TextFieldWidget('Địa chỉ', homeController,
-                        (String? input) {
-                      if (input!.isEmpty) {
-                        return 'Địa chỉ là bắt buộc!';
-                      }
-                      return null;
-                    }),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    TextFieldWidget('Công việc', jobController,
-                        (String? input) {
-                      if (input!.isEmpty) {
-                        return 'Công việc là bắt buộc!';
-                      }
-                      return null;
-                    }),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    TextFieldWidget('Công ty', companyController,
-                        (String? input) {
-                      if (input!.isEmpty) {
-                        return 'Công ty là bắt buộc!';
-                      }
-                      return null;
-                    }),
-                    const SizedBox(
-                      height: 30,
-                    ),
-                    Obx(() => authController.isProfileUploading.value
-                        ? Center(
-                            child: CircularProgressIndicator(),
-                          )
-                        : submitButton('Lưu thông tin', () {
-                            // formKey.currentState!.validate();
-                            if (!formKey.currentState!.validate()) {
-                              return;
-                            }
-
-                            if (selectedImage == null) {
-                              Get.snackbar('Cảnh báo',
-                                  'Vui lòng thêm ảnh của bạn!');
-                              return;
-                            }
-                            authController.isProfileUploading(true);
-                            authController.storeUserInfo(
-                                selectedImage,
-                                nameController.text,
-                                emailController.text,
-                                homeController.text,
-                                jobController.text,
-                                companyController.text);
-                          })),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                  ],
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

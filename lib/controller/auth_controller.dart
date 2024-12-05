@@ -6,7 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:thaga_taxi/views/customer_profile_screen.dart';
 import 'package:thaga_taxi/views/home_screen.dart';
+import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/views/profile_setting.dart';
 import 'package:path/path.dart' as Path;
 
@@ -17,8 +19,10 @@ class AuthController extends GetxController {
   bool phoneAuthCheck = false;
   dynamic credentials;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  var userData = {}.obs;
 
   var isProfileUploading = false.obs;
+  var phoneNumber = ''.obs;
 
   phoneAuth(String phone) async {
     try {
@@ -30,6 +34,7 @@ class AuthController extends GetxController {
           log('Completed');
           credentials = credential;
           await FirebaseAuth.instance.signInWithCredential(credential);
+          decideRoute(); // Chuyển hướng sau khi đăng nhập thành công
         },
         forceResendingToken: resendTokenId,
         verificationFailed: (FirebaseAuthException e) {
@@ -52,21 +57,62 @@ class AuthController extends GetxController {
 
   verifiOtp(String otpNumber) async {
     log('Called');
-    PhoneAuthCredential credential =
-        PhoneAuthProvider.credential(verificationId: verId, smsCode: otpNumber);
-    log('LoggedIn');
 
-    await FirebaseAuth.instance.signInWithCredential(credential).then((value) {
-      decideRoute();
-    });
+    if (verId == null || verId.isEmpty) {
+      log('Verification ID is null or empty');
+      return;
+    }
+
+    try {
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+          verificationId: verId, smsCode: otpNumber);
+
+      log('LoggedIn');
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        decideRoute(); // Chuyển hướng sau khi đăng nhập thành công
+      }
+    } catch (e) {
+      log('Error during OTP verification: $e');
+    }
   }
 
-  decideRoute() {
-    // Buoc 1: Check user login?
+  Future<void> fetchUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // Buoc 2: Check whether user profile exists?
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((DocumentSnapshot snapshot) {
+        if (snapshot.exists) {
+          userData.value = snapshot.data() as Map<String, dynamic>;
+        }
+      });
+    }
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user?.uid)
+          .get();
+
+      if (userDoc.exists) {
+        phoneNumber.value = userDoc['phone'] ?? 'Không có số điện thoại';
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+    }
+  }
+
+  decideRoute() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    log('Current user: ${user?.uid}'); // In ra giá trị user
+
+    if (user != null) {
+      await fetchUserData();
       FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -77,7 +123,11 @@ class AuthController extends GetxController {
         } else {
           Get.to(() => ProfileSettingScreen());
         }
+      }).catchError((e) {
+        log('Error fetching user data: $e');
       });
+    } else {
+      log('No user is logged in.');
     }
   }
 
@@ -95,35 +145,55 @@ class AuthController extends GetxController {
     return imageUrl;
   }
 
-  storeUserInfo(
+  Future<void> storeUserInfo(
     File? selectedImage,
     String name,
     String email,
     String home,
     String job,
     String company, {
-    String url = '',
+    String? imageUrl, // URL ảnh cũ
   }) async {
-    String url_new = url;
-    if (selectedImage != null) {
-      url_new = await uploadImage(selectedImage);
-    }
-    String uid = FirebaseAuth.instance.currentUser!.uid;
-    FirebaseFirestore.instance.collection('users').doc(uid).set({
-      'image': url_new,
-      'name': name,
-      'email': email,
-      'home': home,
-      'job': job,
-      'company': company,
-    }, SetOptions(merge: true)).then((value) {
-      isProfileUploading(false);
+    try {
+      String? uploadedImageUrl;
 
+      // Kiểm tra nếu có ảnh mới, tải ảnh lên Firebase Storage
+      if (selectedImage != null) {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('user_images')
+            .child('${FirebaseAuth.instance.currentUser!.uid}.jpg');
+        await ref.putFile(selectedImage);
+        uploadedImageUrl = await ref.getDownloadURL();
+      } else {
+        // Sử dụng ảnh cũ nếu không có ảnh mới
+        uploadedImageUrl = imageUrl;
+      }
+
+      // Cập nhật thông tin người dùng trong Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .set({
+        'name': name,
+        'email': email,
+        'home': home,
+        'job': job,
+        'company': company,
+        'image': uploadedImageUrl, // Dùng URL ảnh mới hoặc cũ
+      });
+
+      Get.snackbar('Thành công', 'Thông tin đã được cập nhật!');
+    } catch (e) {
+      Get.snackbar('Lỗi', 'Không thể lưu thông tin: $e');
+    } finally {
+      isProfileUploading(false);
       Get.to(() => HomeScreen());
-    });
+    }
   }
 
   Future<void> signOut() async {
     await _auth.signOut();
+    decideRoute(); // Chuyển hướng sau khi đăng xuất
   }
 }
