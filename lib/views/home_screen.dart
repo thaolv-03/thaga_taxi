@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:here_sdk/core.dart';
 import 'package:here_sdk/core.errors.dart';
 import 'package:here_sdk/mapview.dart';
+import 'package:here_sdk/routing.dart';
 import 'package:here_sdk/search.dart';
 import 'package:provider/provider.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
@@ -18,6 +19,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:thaga_taxi/views/customer_profile_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/views/profile_setting.dart';
+import 'package:here_sdk/src/sdk/mapview/map_polyline.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,6 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isDestinationFocused = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _cameraUpdateTimer;
+  MapPolyline? _currentRoutePolyline;
+  GeoCoordinates? _sourceGeoCoordinates;
+  GeoCoordinates? _destinationGeoCoordinates;
 
   @override
   void initState() {
@@ -136,6 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (place != null) {
       final geoCoordinates = place.geoCoordinates;
       if (geoCoordinates != null) {
+        _sourceGeoCoordinates = geoCoordinates;
         // Điều hướng camera tới tọa độ được chọn.
         // _hereMapController.camera.lookAtPoint(geoCoordinates);
 
@@ -194,16 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (place != null) {
       final geoCoordinates = place.geoCoordinates;
       if (geoCoordinates != null) {
-        // Di chuyển xuống phía dưới một chút so với vị trí hiện tại
-        // const double offsetInDegrees = 0.0007;
-        // // const double offsetInDegrees = 0.0;
-        // final adjustedGeoCoordinates = GeoCoordinates(
-        //   geoCoordinates.latitude - offsetInDegrees,
-        //   geoCoordinates.longitude,
-        // );
-
-        // // Điều hướng camera tới tọa độ được điều chỉnh
-        // _hereMapController.camera.lookAtPoint(adjustedGeoCoordinates);
+        _destinationGeoCoordinates = geoCoordinates;
 
         // Khởi tạo Timer mới để chỉ cập nhật camera sau 500ms
         _cameraUpdateTimer = Timer(Duration(milliseconds: 500), () {
@@ -269,6 +266,9 @@ class _HomeScreenState extends State<HomeScreen> {
           MapMeasure(MapMeasureKind.distance, distanceToEarthInMeters);
       hereMapController.camera.lookAtPointWithMeasure(
           GeoCoordinates(15.9790873, 108.2491083), mapMeasureZoom);
+
+      // addRoute(_hereMapController, GeoCoordinates(15.9787446, 108.2494105),
+      //     GeoCoordinates(16.0712851, 108.2290538));
     });
   }
 
@@ -289,6 +289,47 @@ class _HomeScreenState extends State<HomeScreen> {
           // _sourceAddress = places.first.address.addressText;
           sourceController.text = places.first.address.addressText;
         });
+      }
+    });
+  }
+
+  void addRoute(HereMapController _hereMapController, GeoCoordinates source,
+      GeoCoordinates destination) {
+    // Nếu có route cũ, xóa nó
+    if (_currentRoutePolyline != null) {
+      _hereMapController.mapScene.removeMapPolyline(_currentRoutePolyline!);
+      _currentRoutePolyline = null; // Reset polyline cũ
+    }
+
+    RoutingEngine routingEngine = RoutingEngine();
+    Waypoint sourceWaypoint = Waypoint.withDefaults(source);
+    Waypoint destinationWaypoint = Waypoint.withDefaults(destination);
+    List<Waypoint> wayPoints = [sourceWaypoint, destinationWaypoint];
+
+    print("added Route");
+    print("sourceWaypoint: ${sourceWaypoint}");
+    print("destinationWaypoint: ${destinationWaypoint}");
+
+    routingEngine.calculateCarRoute(
+        wayPoints,
+        CarOptions(
+            avoidanceOptions: AvoidanceOptions(),
+            routeOptions: RouteOptions()), (error, routing) {
+      if (error == null) {
+        var route = routing!.first;
+        GeoPolyline geoPolyline = route.geometry;
+
+        MapPolylineRepresentation representation =
+            MapPolylineSolidRepresentation(
+          MapMeasureDependentRenderSize.withSingleSize(
+              RenderSizeUnit.pixels, 20),
+          AppColors.blueColor,
+          LineCap.round,
+        );
+
+        _currentRoutePolyline =
+            MapPolyline.withRepresentation(geoPolyline, representation);
+        _hereMapController.mapScene.addMapPolyline(_currentRoutePolyline!);
       }
     });
   }
@@ -409,6 +450,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _mapMarkers.forEach((geoCoordinates, mapMarker) {
       _hereMapController.mapScene.removeMapMarker(mapMarker);
     });
+
+    setState(() {
+      _sourceGeoCoordinates = currentLocation;
+    });
+
     _mapMarkers.clear();
   }
 
@@ -835,10 +881,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     ElevatedButton(
                       onPressed: () {
                         // Hành động xác nhận, có thể thực hiện lưu hoặc chuyển sang màn hình tiếp theo
-                        print("Điểm đón đã xác nhận: ${sourceController.text}");
                         print(
-                            "Điểm đến đã xác nhận: ${destinationController.text}");
+                            "Điểm đón đã xác nhận: ${sourceController.text} - ${_sourceGeoCoordinates}");
+                        print(
+                            "Điểm đến đã xác nhận: ${destinationController.text} - ${_destinationGeoCoordinates}");
                         // Có thể điều hướng hoặc thực hiện hành động khác ở đây
+                        // _getSourceAndDestinationCoordinates();
+
+                        if (_sourceGeoCoordinates != null &&
+                            _destinationGeoCoordinates != null) {
+                          // Gọi hàm addRoute và truyền các tọa độ
+                          addRoute(_hereMapController, _sourceGeoCoordinates!,
+                              _destinationGeoCoordinates!);
+                        } else {
+                          print("Vui lòng chọn cả điểm đón và điểm đến!");
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.blueColor,
