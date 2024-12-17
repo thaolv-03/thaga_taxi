@@ -25,9 +25,12 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
   TextEditingController homeController = TextEditingController();
   TextEditingController jobController = TextEditingController();
   TextEditingController companyController = TextEditingController();
+  String profileImage = "";
 
   GlobalKey<FormState> formKey = GlobalKey<FormState>();
   AuthController authController = Get.find<AuthController>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final ImagePicker _picker = ImagePicker();
   File? selectedImage;
@@ -35,14 +38,53 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
   @override
   void initState() {
     super.initState();
-    // Lấy dữ liệu ban đầu từ AuthController để hiển thị
-    final user = authController.userData;
-    if (user.isNotEmpty) {
-      nameController.text = user['name'] ?? '';
-      emailController.text = user['email'] ?? '';
-      homeController.text = user['home'] ?? '';
-      jobController.text = user['job'] ?? '';
-      companyController.text = user['company'] ?? '';
+    _loadCurrentUserData();
+  }
+
+  Future<void> _loadCurrentUserData() async {
+    try {
+      final User? currentUser = _auth.currentUser; // Lấy người dùng hiện tại
+      if (currentUser != null) {
+        String uid = currentUser.uid;
+
+        // Truy vấn thông tin người dùng từ Firestore
+        DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
+
+        if (userDoc.exists) {
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+
+          // Cập nhật thông tin vào controller
+          setState(() {
+            nameController.text = userData['name'] ?? '';
+            emailController.text = userData['email'] ?? '';
+            homeController.text = userData['home'] ?? '';
+            jobController.text = userData['job'] ?? '';
+            companyController.text = userData['company'] ?? '';
+            profileImage = userData['image'] ?? '';
+          });
+        } else {
+          // Nếu không có thông tin, để trống các controller
+          setState(() {
+            nameController.clear();
+            emailController.clear();
+            homeController.clear();
+            jobController.clear();
+            companyController.clear();
+            profileImage = '';
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user data: $e");
+      // Nếu có lỗi, để trống các controller
+      setState(() {
+        nameController.clear();
+        emailController.clear();
+        homeController.clear();
+        jobController.clear();
+        companyController.clear();
+        profileImage = '';
+      });
     }
   }
 
@@ -60,10 +102,6 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
       body: Obx(
         () {
           final user = authController.userData;
-
-          if (user.isEmpty) {
-            return Center(child: Text('Không tìm thấy thông tin người dùng'));
-          }
 
           String profileImage = user['image'] ?? '';
 

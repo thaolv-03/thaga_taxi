@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -11,7 +9,6 @@ import 'package:here_sdk/core.errors.dart';
 import 'package:here_sdk/mapview.dart';
 import 'package:here_sdk/routing.dart';
 import 'package:here_sdk/search.dart';
-import 'package:provider/provider.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
 import 'package:thaga_taxi/utils/app_colors.dart';
 import 'dart:ui' as ui;
@@ -19,7 +16,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:thaga_taxi/views/customer_profile_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/views/profile_setting.dart';
-import 'package:here_sdk/src/sdk/mapview/map_polyline.dart';
+import 'package:thaga_taxi/widgets/text_widget.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _sourceAddress = "Đang tải vị trí hiện tại...";
   String focusedField = "destination";
   double _sheetChildSize = 0.6;
+  double _sheetRideConfirmChildSize = 0.4;
   bool showSourceField = true;
   bool isSourceFocused = false;
   bool isDestinationFocused = false;
@@ -50,6 +49,14 @@ class _HomeScreenState extends State<HomeScreen> {
   MapPolyline? _currentRoutePolyline;
   GeoCoordinates? _sourceGeoCoordinates;
   GeoCoordinates? _destinationGeoCoordinates;
+  // List<String> list = <String>[
+  //   '**** **** **** 8789',
+  //   '**** **** **** 8921',
+  //   '**** **** **** 1233',
+  //   '**** **** **** 4352'
+  // ];
+  // String dropdownValue = '**** **** **** 8789';
+  bool showRideConfirmSheet = false;
 
   @override
   void initState() {
@@ -172,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _mapMarkers.clear();
 
         // Tạo marker mới từ asset
-        final mapImage = await _createMarkerImage();
+        final mapImage = await _createSourceMarkerImage();
 
         // Thêm marker mới tại vị trí tìm kiếm
         final mapMarker = MapMarker(geoCoordinates, mapImage);
@@ -229,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _mapMarkers.clear();
 
         // Tạo marker mới từ asset
-        final mapImage = await _createMarkerImage();
+        final mapImage = await _createDestinationMarkerImage();
 
         // Thêm marker mới tại vị trí tìm kiếm
         final mapMarker = MapMarker(geoCoordinates, mapImage);
@@ -286,15 +293,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (places != null && places.isNotEmpty) {
         setState(() {
-          // _sourceAddress = places.first.address.addressText;
           sourceController.text = places.first.address.addressText;
         });
       }
     });
   }
 
+  void _removeAllMarkers(HereMapController _hereMapController) {
+    // Duyệt qua tất cả các marker và xóa chúng khỏi bản đồ
+    _mapMarkers.forEach((key, marker) {
+      _hereMapController.mapScene.removeMapMarker(marker);
+    });
+    _mapMarkers.clear(); // Xóa tất cả các marker trong map
+  }
+
+// Hàm thêm marker cho điểm xuất phát và điểm đến
+  Future<void> _addMarkers(HereMapController _hereMapController,
+      GeoCoordinates source, GeoCoordinates destination) async {
+    // Tạo marker cho điểm đến
+    MapImage destinationMarkerImage = await _createDestinationMarkerImage();
+    MapMarker destinationMarker =
+        MapMarker(destination, destinationMarkerImage);
+    _hereMapController.mapScene.addMapMarker(destinationMarker);
+    _mapMarkers[destination] = destinationMarker; // Thêm vào Map
+
+    // Tạo marker cho điểm xuất phát
+    MapImage sourceMarkerImage = await _createSourceMarkerImage();
+    MapMarker sourceMarker = MapMarker(source, sourceMarkerImage);
+    _hereMapController.mapScene.addMapMarker(sourceMarker);
+    _mapMarkers[source] = sourceMarker; // Thêm vào Map
+  }
+
   void addRoute(HereMapController _hereMapController, GeoCoordinates source,
-      GeoCoordinates destination) {
+      GeoCoordinates destination) async {
+    // Xóa tất cả các marker hiện tại
+    _removeAllMarkers(_hereMapController);
     // Nếu có route cũ, xóa nó
     if (_currentRoutePolyline != null) {
       _hereMapController.mapScene.removeMapPolyline(_currentRoutePolyline!);
@@ -311,27 +344,85 @@ class _HomeScreenState extends State<HomeScreen> {
     print("destinationWaypoint: ${destinationWaypoint}");
 
     routingEngine.calculateCarRoute(
-        wayPoints,
-        CarOptions(
-            avoidanceOptions: AvoidanceOptions(),
-            routeOptions: RouteOptions()), (error, routing) {
-      if (error == null) {
-        var route = routing!.first;
-        GeoPolyline geoPolyline = route.geometry;
+      wayPoints,
+      CarOptions(
+          avoidanceOptions: AvoidanceOptions(), routeOptions: RouteOptions()),
+      (error, routing) {
+        if (error == null) {
+          var route = routing!.first;
+          GeoPolyline geoPolyline = route.geometry;
 
-        MapPolylineRepresentation representation =
-            MapPolylineSolidRepresentation(
-          MapMeasureDependentRenderSize.withSingleSize(
-              RenderSizeUnit.pixels, 20),
-          AppColors.blueColor,
-          LineCap.round,
-        );
+          MapPolylineRepresentation representation =
+              MapPolylineSolidRepresentation(
+            MapMeasureDependentRenderSize.withSingleSize(
+                RenderSizeUnit.pixels, 20),
+            AppColors.blueColor,
+            LineCap.round,
+          );
 
-        _currentRoutePolyline =
-            MapPolyline.withRepresentation(geoPolyline, representation);
-        _hereMapController.mapScene.addMapPolyline(_currentRoutePolyline!);
-      }
-    });
+          _currentRoutePolyline =
+              MapPolyline.withRepresentation(geoPolyline, representation);
+          _hereMapController.mapScene.addMapPolyline(_currentRoutePolyline!);
+
+          _zoomOutToShowRoute(_hereMapController, source, destination);
+        }
+      },
+    );
+
+    await _addMarkers(_hereMapController, source, destination);
+  }
+
+  // Hàm zoom-out để hiển thị cả hai điểm
+  void _zoomOutToShowRoute(HereMapController _hereMapController,
+      GeoCoordinates source, GeoCoordinates destination) {
+    // Tính toán các giá trị tọa độ của góc Đông Bắc và Tây Nam
+    double minLatitude = source.latitude < destination.latitude
+        ? source.latitude
+        : destination.latitude;
+    double maxLatitude = source.latitude > destination.latitude
+        ? source.latitude
+        : destination.latitude;
+    double minLongitude = source.longitude < destination.longitude
+        ? source.longitude
+        : destination.longitude;
+    double maxLongitude = source.longitude > destination.longitude
+        ? source.longitude
+        : destination.longitude;
+
+    // Tính khoảng cách giữa hai điểm
+    double latDiff = maxLatitude - minLatitude;
+    double lonDiff = maxLongitude - minLongitude;
+
+    // Tự động điều chỉnh padding dựa trên khoảng cách giữa hai điểm
+    double dynamicPadding = (latDiff > lonDiff ? latDiff : lonDiff) * 0.5;
+
+    // Thêm padding để zoom out rộng hơn
+    GeoCoordinates northEast = GeoCoordinates(
+      maxLatitude + dynamicPadding,
+      maxLongitude + dynamicPadding,
+    );
+    GeoCoordinates southWest = GeoCoordinates(
+      minLatitude - dynamicPadding,
+      minLongitude - dynamicPadding,
+    );
+
+    // Dịch chuyển trung tâm xuống dưới (giảm giá trị latitude)
+    double centerShift = latDiff * 1; // Tỷ lệ dịch chuyển dựa trên khoảng cách
+    GeoCoordinates shiftedSouthWest =
+        GeoCoordinates(southWest.latitude - centerShift, southWest.longitude);
+
+    // Tạo GeoBox với các giá trị đã điều chỉnh
+    GeoBox shiftedGeoBox = GeoBox(shiftedSouthWest, northEast);
+
+    // Cập nhật camera tới GeoBox đã điều chỉnh
+    const double defaultHeading = 0; // Camera nhìn về phía Bắc
+    const double defaultTilt = 0; // Không nghiêng camera
+    GeoOrientationUpdate orientationUpdate =
+        GeoOrientationUpdate(defaultHeading, defaultTilt);
+
+    // Điều chỉnh camera với GeoBox đã được dịch
+    _hereMapController.camera
+        .lookAtAreaWithGeoOrientation(shiftedGeoBox, orientationUpdate);
   }
 
   @override
@@ -351,6 +442,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           buildDraggableBottomSheet(),
+          // Draggable BottomSheet thứ hai, chỉ hiển thị khi showRideConfirmSheet = true
+          if (showRideConfirmSheet) buildDraggableRideConfirmSheet(),
+
+          // buildDraggableBottomSheet(),
           buildProfileTile(),
           Positioned(
             top: 140,
@@ -411,7 +506,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     const double offsetInDegrees = 0.001;
-
     // Di chuyển camera đến vị trí hiện tại
     GeoCoordinates currentLocation =
         GeoCoordinates(position.latitude, position.longitude);
@@ -421,20 +515,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Chuyển đổi tọa độ thành địa chỉ bằng Here Maps ReverseGeocoding
     _reverseGeocodeLocation(currentLocation);
-
-    // Điều chỉnh camera
     _hereMapController.camera.lookAtPoint(adjustedCurrentLocation);
-
-    // Zoom vào vị trí gần hơn (nếu cần)
     const double distanceToEarthInMeters = 800; // Khoảng cách zoom
     MapMeasure mapMeasureZoom =
         MapMeasure(MapMeasureKind.distance, distanceToEarthInMeters);
 
     _hereMapController.camera
         .lookAtPointWithMeasure(adjustedCurrentLocation, mapMeasureZoom);
-    // Sử dụng hiệu ứng "lướt" camera tới vị trí hiện tại
-    // Tạo hiệu ứng lướt camera
-    // _animateCamera(currentLocation, mapMeasureZoom);
 
     if (_currentLocationMarker != null) {
       print("Current location marker already exists. Only moving camera.");
@@ -458,8 +545,27 @@ class _HomeScreenState extends State<HomeScreen> {
     _mapMarkers.clear();
   }
 
-  Future<MapImage> _createMarkerImage({int width = 50, int height = 75}) async {
+  Future<MapImage> _createDestinationMarkerImage(
+      {int width = 50, int height = 75}) async {
     ByteData imageData = await rootBundle.load('assets/marker.png');
+    ui.Codec codec = await ui.instantiateImageCodec(
+      imageData.buffer.asUint8List(),
+      targetWidth: width,
+      targetHeight: height,
+    );
+    ui.FrameInfo frameInfo = await codec.getNextFrame();
+    ByteData resizedImageData = await frameInfo.image
+        .toByteData(format: ui.ImageByteFormat.png) as ByteData;
+
+    return MapImage.withPixelDataAndImageFormat(
+      resizedImageData.buffer.asUint8List(),
+      ImageFormat.png,
+    );
+  }
+
+  Future<MapImage> _createSourceMarkerImage(
+      {int width = 75, int height = 75}) async {
+    ByteData imageData = await rootBundle.load('assets/pin_marker.png');
     ui.Codec codec = await ui.instantiateImageCodec(
       imageData.buffer.asUint8List(),
       targetWidth: width,
@@ -885,14 +991,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             "Điểm đón đã xác nhận: ${sourceController.text} - ${_sourceGeoCoordinates}");
                         print(
                             "Điểm đến đã xác nhận: ${destinationController.text} - ${_destinationGeoCoordinates}");
-                        // Có thể điều hướng hoặc thực hiện hành động khác ở đây
-                        // _getSourceAndDestinationCoordinates();
 
                         if (_sourceGeoCoordinates != null &&
                             _destinationGeoCoordinates != null) {
                           // Gọi hàm addRoute và truyền các tọa độ
                           addRoute(_hereMapController, _sourceGeoCoordinates!,
                               _destinationGeoCoordinates!);
+
+                          _loadDriverOptions(_sourceGeoCoordinates!,
+                              _destinationGeoCoordinates!);
+
+                          setState(() {
+                            showRideConfirmSheet = true;
+                          });
                         } else {
                           print("Vui lòng chọn cả điểm đón và điểm đến!");
                         }
@@ -1023,6 +1134,372 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<double> _calculateDistance(
+      GeoCoordinates source, GeoCoordinates destination) async {
+    // Tạo RoutingEngine để tính toán đường đi
+    RoutingEngine routingEngine = RoutingEngine();
+
+    // Tạo Waypoints từ tọa độ đầu và cuối
+    Waypoint sourceWaypoint = Waypoint.withDefaults(source);
+    Waypoint destinationWaypoint = Waypoint.withDefaults(destination);
+    List<Waypoint> wayPoints = [sourceWaypoint, destinationWaypoint];
+
+    double distanceInKm = 0.0;
+    Completer<double> completer = Completer<double>();
+    // Tính toán tuyến đường
+    routingEngine.calculateCarRoute(
+        wayPoints,
+        CarOptions(
+            avoidanceOptions: AvoidanceOptions(),
+            routeOptions: RouteOptions()), (error, routing) {
+      if (error == null) {
+        var route = routing!.first;
+
+        // Tính khoảng cách từ route
+        distanceInKm = route.lengthInMeters / 1000; // Đổi từ mét sang km
+        print(
+            "Khoảng cách giữa hai điểm: ${distanceInKm.toStringAsFixed(2)} km");
+        completer.complete(distanceInKm); // Trả về khoảng cách khi tính xong
+      } else {
+        print("Lỗi khi tính toán tuyến đường: $error");
+        completer.completeError("Không thể tính khoảng cách");
+      }
+    });
+    return completer.future; // Trả về khoảng cách
+  }
+
+  String formatCurrency(int amount) {
+    int roundedAmount = (amount ~/ 1000) * 1000;
+
+    final formatter = NumberFormat("#,###", "vi_VN");
+    return "${formatter.format(roundedAmount)}đ";
+  }
+
+  double pricePerKm4Seats = 14000; // 15k cho xe 4 chỗ
+  double pricePerKm7Seats = 18000; // 20k cho xe 7 chỗ
+
+  List<Map<String, dynamic>> driverOptions = [];
+
+  Future<void> _loadDriverOptions(
+      GeoCoordinates source, GeoCoordinates destination) async {
+    double distance = await _calculateDistance(source, destination);
+
+    setState(() {
+      driverOptions = [
+        {
+          "title": "Nhanh chóng",
+          "price": (distance * pricePerKm4Seats).toInt(),
+          "seats": "4 người",
+        },
+        {
+          "title": "Rộng rãi",
+          "price": (distance * pricePerKm7Seats).toInt(),
+          "seats": "7 người",
+        }
+      ];
+    });
+  }
+
+  int selectedRide = 0;
+
+  buildDriverList() {
+    return Container(
+      height: 90,
+      width: Get.width,
+      child: StatefulBuilder(
+        builder: (context, set) {
+          return ListView.builder(
+            itemBuilder: (ctx, i) {
+              return InkWell(
+                onTap: () {
+                  set(() {
+                    selectedRide = i;
+                  });
+                },
+                child: buildDriverCard(
+                  selected: selectedRide == i,
+                  title: driverOptions[i]['title'],
+                  price: driverOptions[i]['price'],
+                  seats: driverOptions[i]['seats'],
+                ),
+              );
+            },
+            itemCount: driverOptions.length,
+            scrollDirection: Axis.horizontal,
+          );
+        },
+      ),
+    );
+  }
+
+  buildDriverCard(
+      {required bool selected,
+      required String title,
+      required int price,
+      required String seats}) {
+    return Container(
+      margin: EdgeInsets.only(right: 16, left: 0, top: 4, bottom: 4),
+      height: 85,
+      width: 165,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: selected
+                ? AppColors.blueColor.withOpacity(0.2)
+                : Colors.grey.withOpacity(0.2),
+            offset: Offset(0, 5),
+            blurRadius: 5,
+            spreadRadius: 1,
+          ),
+        ],
+        borderRadius: BorderRadius.circular(12),
+        color: selected ? AppColors.blueColor : Colors.grey,
+      ),
+      child: Stack(
+        children: [
+          Container(
+            padding: EdgeInsets.only(left: 10, top: 10, bottom: 10, right: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(
+                  width: 10,
+                ),
+                Text(
+                  formatCurrency(price),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(
+                  width: 10,
+                ),
+                Text(
+                  seats,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: -20,
+            top: 0,
+            bottom: 0,
+            child: Image.asset(
+              'assets/car_image.png',
+              width: 90,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  buildPaymentCardWidget() {
+    return Container(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          InkWell(
+            onTap: () {
+              // Thêm logic khi nhấn nút ở đây
+              print('Button pressed!');
+            },
+            splashColor: Colors.grey.withOpacity(0.3), // Màu hiệu ứng khi nhấn
+            highlightColor:
+                Colors.grey.withOpacity(0.1), // Màu sáng khi giữ nút
+            borderRadius: BorderRadius.circular(8), // Định hình hiệu ứng
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/cash_black.png',
+                  width: 30,
+                ),
+                SizedBox(
+                  width: 10,
+                ),
+                Text(
+                  'Tiền mặt',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                SizedBox(
+                  width: 5,
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.black,
+                  size: 30,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildDraggableRideConfirmSheet() {
+    return DraggableScrollableSheet(
+      initialChildSize: _sheetRideConfirmChildSize,
+      minChildSize: _sheetRideConfirmChildSize,
+      maxChildSize: _sheetRideConfirmChildSize,
+      builder: (BuildContext context, ScrollController scrollController) {
+        return Container(
+          width: Get.width,
+          height: Get.height * 0.4,
+          // padding: EdgeInsets.only(left: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 4,
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Text(
+                'Lựa chọn xe',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(
+                height: 10,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          showRideConfirmSheet = false;
+                        });
+                      },
+                      child: Container(
+                        width: 35,
+                        height: 35,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.blueColor,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              spreadRadius: 4,
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: AppColors.whiteColor,
+                          size: 23,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Quay lại chọn lộ trình',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    )
+                  ],
+                ),
+              ),
+
+              Container(
+                padding: EdgeInsets.only(left: 20),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      height: 5,
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    buildDriverList(),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: Divider(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: buildPaymentCardWidget(),
+                          ),
+                          MaterialButton(
+                            onPressed: () {},
+                            child: textWidget(
+                              text: 'Đặt xe',
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            color: AppColors.blueColor,
+                            shape: StadiumBorder(),
+                            minWidth: 120,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(child: ListView(controller: scrollController)),
+            ],
+          ),
+        );
+      },
     );
   }
 

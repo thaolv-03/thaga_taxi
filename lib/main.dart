@@ -60,7 +60,7 @@ class MyApp extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return GetMaterialApp(
-      title: 'Flutter Demo',
+      title: 'Thaga Taxi',
       theme: ThemeData(
         textTheme: GoogleFonts.interTextTheme(textTheme),
         scaffoldBackgroundColor: Colors.white,

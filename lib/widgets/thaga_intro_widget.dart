@@ -13,7 +13,7 @@ Widget thagaIntroWidget() {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SvgPicture.asset('assets/ThagaTaxi.svg'),
+        SvgPicture.asset('assets/thagataxi_logo.svg'),
         const SizedBox(
           height: 10,
         ),
