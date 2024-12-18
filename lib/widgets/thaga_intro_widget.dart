@@ -8,12 +8,20 @@ Widget thagaIntroWidget() {
     width: Get.width,
     decoration: BoxDecoration(
         image: DecorationImage(
-            image: AssetImage('assets/mask_1.png'), fit: BoxFit.cover)),
+            image: AssetImage('assets/mask_4.png'), fit: BoxFit.cover)),
     height: Get.height * 0.6,
     child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SvgPicture.asset('assets/thagataxi_logo.svg'),
+        const SizedBox(
+          height: 60,// Thêm khoảng cách từ cạnh trên
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 20), // Khoảng cách từ bên trái
+          child: SvgPicture.asset('assets/thaga_taxi_logo_n2.svg', width: 270),
+        ),
+
         const SizedBox(
           height: 10,
         ),
@@ -27,7 +35,7 @@ Widget thagaIntroWidgetWithoutLogos(String title, String? subtitle) {
     width: Get.width,
     decoration: BoxDecoration(
       image: DecorationImage(
-        image: AssetImage('assets/mask_1.png'),
+        image: AssetImage('assets/mask_5.png'),
         fit: BoxFit.fill,
       ),
     ),

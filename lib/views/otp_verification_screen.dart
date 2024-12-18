@@ -34,7 +34,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 thagaIntroWidget(),
                 Positioned(
                   top: 60,
-                  left: 30,
+                  right: 25,
                   child: InkWell(
                     onTap: () {
                       Get.back();

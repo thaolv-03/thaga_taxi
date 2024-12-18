@@ -26,6 +26,7 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
   TextEditingController jobController = TextEditingController();
   TextEditingController companyController = TextEditingController();
   String profileImage = "";
+  bool isHasUserData = false;
 
   GlobalKey<FormState> formKey = GlobalKey<FormState>();
   AuthController authController = Get.find<AuthController>();
@@ -48,13 +49,16 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
         String uid = currentUser.uid;
 
         // Truy vấn thông tin người dùng từ Firestore
-        DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(uid).get();
 
         if (userDoc.exists) {
-          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          Map<String, dynamic> userData =
+              userDoc.data() as Map<String, dynamic>;
 
           // Cập nhật thông tin vào controller
           setState(() {
+            isHasUserData = true;
             nameController.text = userData['name'] ?? '';
             emailController.text = userData['email'] ?? '';
             homeController.text = userData['home'] ?? '';
@@ -65,6 +69,7 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
         } else {
           // Nếu không có thông tin, để trống các controller
           setState(() {
+            isHasUserData = false;
             nameController.clear();
             emailController.clear();
             homeController.clear();
@@ -78,6 +83,7 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
       print("Error loading user data: $e");
       // Nếu có lỗi, để trống các controller
       setState(() {
+        isHasUserData = false;
         nameController.clear();
         emailController.clear();
         homeController.clear();
@@ -115,28 +121,29 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
                   child: Stack(
                     children: [
                       thagaIntroWidgetWithoutLogos("Thiết lập hồ sơ", ""),
-                      Positioned(
-                        top: 80,
-                        left: 30,
-                        child: InkWell(
-                          onTap: () {
-                            Get.off(() => HomeScreen());
-                          },
-                          child: Container(
-                            width: 45,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                            ),
-                            child: Icon(
-                              Icons.arrow_back,
-                              color: Colors.blue,
-                              size: 20,
+                      if (isHasUserData)
+                        Positioned(
+                          top: 80,
+                          left: 30,
+                          child: InkWell(
+                            onTap: () {
+                              Get.off(() => HomeScreen());
+                            },
+                            child: Container(
+                              width: 45,
+                              height: 45,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                              child: Icon(
+                                Icons.arrow_back,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: InkWell(
@@ -153,7 +160,7 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
                                         shape: BoxShape.circle,
                                         image: DecorationImage(
                                           image: NetworkImage(profileImage),
-                                          fit: BoxFit.fill,
+                                          fit: BoxFit.cover,
                                         ),
                                         color:
                                             Color.fromARGB(255, 255, 255, 255),
@@ -199,7 +206,7 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
                                   decoration: BoxDecoration(
                                     image: DecorationImage(
                                       image: FileImage(selectedImage!),
-                                      fit: BoxFit.fill,
+                                      fit: BoxFit.cover,
                                     ),
                                     shape: BoxShape.circle,
                                     color: Color.fromARGB(255, 255, 255, 255),
