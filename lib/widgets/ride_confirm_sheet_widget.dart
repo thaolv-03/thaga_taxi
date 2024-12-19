@@ -5,7 +5,13 @@ import 'package:thaga_taxi/widgets/text_widget.dart';
 
 import '../utils/app_colors.dart';
 
-Widget buildDraggableRideConfirmSheet(double _sheetRideConfirmChildSize, bool showRideConfirmSheet, Function buildDriverList, Function buildPaymentCardWidget, VoidCallback setStateCallback,) {
+Widget buildDraggableRideConfirmSheet(
+  double _sheetRideConfirmChildSize,
+  bool showRideConfirmSheet,
+  Function buildDriverList,
+  Function buildPaymentCardWidget,
+  VoidCallback setStateCallback,
+) {
   return DraggableScrollableSheet(
     initialChildSize: _sheetRideConfirmChildSize,
     minChildSize: _sheetRideConfirmChildSize,
@@ -93,7 +99,6 @@ Widget buildDraggableRideConfirmSheet(double _sheetRideConfirmChildSize, bool sh
                 ],
               ),
             ),
-
             Container(
               padding: EdgeInsets.only(left: 20),
               child: Column(

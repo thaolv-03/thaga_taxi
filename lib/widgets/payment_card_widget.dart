@@ -13,8 +13,7 @@ Widget buildPaymentCardWidget() {
             print('Button pressed!');
           },
           splashColor: Colors.grey.withOpacity(0.3), // Màu hiệu ứng khi nhấn
-          highlightColor:
-          Colors.grey.withOpacity(0.1), // Màu sáng khi giữ nút
+          highlightColor: Colors.grey.withOpacity(0.1), // Màu sáng khi giữ nút
           borderRadius: BorderRadius.circular(8), // Định hình hiệu ứng
           child: Row(
             children: [

@@ -14,7 +14,7 @@ class ProfileTitle extends StatelessWidget {
     final authController = Get.find<AuthController>();
 
     return Obx(
-          () {
+      () {
         final user = authController.userData;
 
         if (user.isEmpty) {
@@ -44,8 +44,7 @@ class ProfileTitle extends StatelessWidget {
                       image: DecorationImage(
                         image: profileImage.isNotEmpty
                             ? NetworkImage(profileImage)
-                            : AssetImage('assets/person.png')
-                        as ImageProvider,
+                            : AssetImage('assets/person.png') as ImageProvider,
                         fit: BoxFit.fill,
                       ),
                     ),
@@ -87,79 +86,3 @@ class ProfileTitle extends StatelessWidget {
     );
   }
 }
-
-// Widget buildProfileTile() {
-//   final authController = Get.find<AuthController>();
-//
-//   return Obx(
-//         () {
-//       final user = authController.userData;
-//
-//       if (user.isEmpty) {
-//         return Center(child: Text('Không tìm thấy thông tin người dùng'));
-//       }
-//
-//       String name = user['name'] ?? 'Tên người dùng';
-//       String profileImage = user['image'] ?? '';
-//       return Positioned(
-//         top: 60,
-//         left: 20,
-//         right: 20,
-//         child: Container(
-//           width: Get.width,
-//           child: Row(
-//             children: [
-//               GestureDetector(
-//                 onTap: () {
-//                   _scaffoldKey.currentState?.openDrawer();
-//                 },
-//                 child: Container(
-//                   width: 50,
-//                   height: 50,
-//                   decoration: BoxDecoration(
-//                     shape: BoxShape.circle,
-//                     image: DecorationImage(
-//                       image: profileImage.isNotEmpty
-//                           ? NetworkImage(
-//                           profileImage) // Sử dụng URL hình ảnh từ Firestore
-//                           : AssetImage('assets/person.png')
-//                       as ImageProvider, // Nếu không có ảnh thì dùng ảnh mặc định
-//                       fit: BoxFit.fill,
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(
-//                 width: 15,
-//               ),
-//               Expanded(
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Text(
-//                       name,
-//                       style: GoogleFonts.inter(
-//                         color: AppColors.blueColor,
-//                         fontSize: 18,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                       maxLines: 1,
-//                       overflow: TextOverflow.ellipsis,
-//                     ),
-//                     Text(
-//                       'Tìm kiếm điểm đến...',
-//                       style: GoogleFonts.inter(
-//                           fontSize: 19,
-//                           fontWeight: FontWeight.bold,
-//                           color: Colors.black),
-//                     ),
-//                   ],
-//                 ),
-//               )
-//             ],
-//           ),
-//         ),
-//       );
-//     },
-//   );
-// }

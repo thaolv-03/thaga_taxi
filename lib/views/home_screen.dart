@@ -4,23 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:here_sdk/core.dart';
 import 'package:here_sdk/core.errors.dart';
 import 'package:here_sdk/mapview.dart';
 import 'package:here_sdk/routing.dart';
 import 'package:here_sdk/search.dart';
-import 'package:thaga_taxi/controller/auth_controller.dart';
 import 'package:thaga_taxi/utils/app_colors.dart';
 import 'dart:ui' as ui;
 import 'package:geolocator/geolocator.dart';
-import 'package:thaga_taxi/views/customer_profile_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
-import 'package:thaga_taxi/views/profile_setting.dart';
 import 'package:thaga_taxi/widgets/notification_icon_widget.dart';
-import 'package:thaga_taxi/widgets/text_field_destination_widget.dart';
-import 'package:thaga_taxi/widgets/text_widget.dart';
-import 'package:intl/intl.dart';
 
 import '../widgets/bottom_sheet_widget.dart';
 import '../widgets/current_location_icon_widget.dart';
@@ -30,7 +23,6 @@ import '../widgets/payment_card_widget.dart';
 import '../widgets/profile_title.dart';
 import '../widgets/ride_confirm_sheet_widget.dart';
 import '../widgets/route_summary_card_widget.dart';
-import '../widgets/text_field_source_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -719,7 +711,7 @@ class _HomeScreenState extends State<HomeScreen> {
               print(
                   "Điểm đến đã xác nhận: ${destinationController.text} - ${_destinationGeoCoordinates}");
 
-              if ( _sourceGeoCoordinates != null &&
+              if (_sourceGeoCoordinates != null &&
                   _destinationGeoCoordinates != null) {
                 addRoute(_hereMapController, _sourceGeoCoordinates!,
                     _destinationGeoCoordinates!);
@@ -750,7 +742,7 @@ class _HomeScreenState extends State<HomeScreen> {
               () {
                 setState(() {
                   showRideConfirmSheet = false;
-                  showRouteSummary = false;// Update state in parent widget
+                  showRouteSummary = false; // Update state in parent widget
                 });
               },
             ),
@@ -784,14 +776,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
           if (showRouteSummary)
             Align(
               alignment: Alignment.topCenter,
               child: RouteSummaryCard(
                 pickupAddress: sourceController.text,
-                destinationAddress:
-                destinationController.text,
+                destinationAddress: destinationController.text,
                 onAddPressed: () {
                   print("Thêm điểm dừng");
                 },

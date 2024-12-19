@@ -47,9 +47,9 @@ Widget buildDriverList() {
 
 buildDriverCard(
     {required bool selected,
-      required String title,
-      required int price,
-      required String seats}) {
+    required String title,
+    required int price,
+    required String seats}) {
   return Container(
     margin: EdgeInsets.only(right: 16, left: 0, top: 4, bottom: 4),
     height: 85,

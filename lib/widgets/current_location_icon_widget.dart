@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../utils/app_colors.dart';
 
-Widget buildCurrentLocationIcon(Future<void> Function() _moveToCurrentLocation) {
+Widget buildCurrentLocationIcon(
+    Future<void> Function() _moveToCurrentLocation) {
   return Align(
     child: Padding(
       padding: const EdgeInsets.only(right: 15),

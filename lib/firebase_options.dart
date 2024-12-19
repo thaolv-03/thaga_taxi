@@ -85,5 +85,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'thagataxi-bfbd5.firebasestorage.app',
     measurementId: 'G-WEBLN37JCS',
   );
-
 }

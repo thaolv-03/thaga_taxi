@@ -40,14 +40,14 @@ class DrawerWidget extends StatelessWidget {
             ),
             isVisible
                 ? CircleAvatar(
-              backgroundColor: AppColors.blueColor,
-              radius: 13,
-              child: Text(
-                '1',
-                style: GoogleFonts.inter(
-                    color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            )
+                    backgroundColor: AppColors.blueColor,
+                    radius: 13,
+                    child: Text(
+                      '1',
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  )
                 : Container(),
           ],
         ),
@@ -60,7 +60,7 @@ class DrawerWidget extends StatelessWidget {
     final authController = Get.find<AuthController>();
 
     return Obx(
-          () {
+      () {
         final user = authController.userData;
 
         if (user.isEmpty) {
@@ -89,7 +89,7 @@ class DrawerWidget extends StatelessWidget {
                             image: profileImage.isNotEmpty
                                 ? NetworkImage(profileImage)
                                 : AssetImage('assets/person.png')
-                            as ImageProvider,
+                                    as ImageProvider,
                             fit: BoxFit.fill,
                           ),
                         ),

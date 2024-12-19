@@ -92,7 +92,7 @@ class _TextFieldDestinationState extends State<TextFieldDestination> {
                   ),
                 ),
                 suffixIcon: widget.isDestinationFocused &&
-                    widget.destinationController.text.isNotEmpty
+                        widget.destinationController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {

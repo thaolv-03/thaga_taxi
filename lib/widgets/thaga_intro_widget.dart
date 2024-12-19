@@ -15,13 +15,12 @@ Widget thagaIntroWidget() {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(
-          height: 60,// Thêm khoảng cách từ cạnh trên
+          height: 60, // Thêm khoảng cách từ cạnh trên
         ),
         Padding(
           padding: const EdgeInsets.only(left: 20), // Khoảng cách từ bên trái
           child: SvgPicture.asset('assets/thaga_taxi_logo_n2.svg', width: 270),
         ),
-
         const SizedBox(
           height: 10,
         ),
