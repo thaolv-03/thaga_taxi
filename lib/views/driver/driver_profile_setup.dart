@@ -9,22 +9,20 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
 import 'package:thaga_taxi/utils/app_colors.dart';
+import 'package:thaga_taxi/views/driver/home_screen_driver.dart';
 import 'package:thaga_taxi/views/home_screen.dart';
 import 'package:thaga_taxi/widgets/thaga_intro_widget.dart';
 
-class ProfileSettingScreen extends StatefulWidget {
-  const ProfileSettingScreen({super.key});
+class DriverProfileSetup extends StatefulWidget {
+  const DriverProfileSetup({super.key});
 
   @override
-  State<ProfileSettingScreen> createState() => _ProfileSettingScreenState();
+  State<DriverProfileSetup> createState() => _DriverProfileSetupState();
 }
 
-class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
+class _DriverProfileSetupState extends State<DriverProfileSetup> {
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
-  TextEditingController homeController = TextEditingController();
-  TextEditingController jobController = TextEditingController();
-  TextEditingController companyController = TextEditingController();
   String profileImage = "";
   bool isHasUserData = false;
 
@@ -61,9 +59,6 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
             isHasUserData = true;
             nameController.text = userData['name'] ?? '';
             emailController.text = userData['email'] ?? '';
-            homeController.text = userData['home'] ?? '';
-            jobController.text = userData['job'] ?? '';
-            companyController.text = userData['company'] ?? '';
             profileImage = userData['image'] ?? '';
           });
         } else {
@@ -72,9 +67,6 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
             isHasUserData = false;
             nameController.clear();
             emailController.clear();
-            homeController.clear();
-            jobController.clear();
-            companyController.clear();
             profileImage = '';
           });
         }
@@ -86,9 +78,6 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
         isHasUserData = false;
         nameController.clear();
         emailController.clear();
-        homeController.clear();
-        jobController.clear();
-        companyController.clear();
         profileImage = '';
       });
     }
@@ -120,14 +109,14 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
                   height: Get.height * 0.4,
                   child: Stack(
                     children: [
-                      thagaIntroWidgetWithoutLogos("Thiết lập hồ sơ", ""),
+                      thagaIntroWidgetWithoutLogos("Thiết lập hồ sơ tài xế", ""),
                       if (isHasUserData)
                         Positioned(
                           top: 60,
                           left: 30,
                           child: InkWell(
                             onTap: () {
-                              Get.off(() => HomeScreen());
+                              Get.off(() => HomeScreenDriver());
                             },
                             child: Container(
                               width: 45,
@@ -254,36 +243,6 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
                           return null;
                         }),
                         const SizedBox(
-                          height: 10,
-                        ),
-                        TextFieldWidget('Địa chỉ', homeController,
-                            (String? input) {
-                          if (input!.isEmpty) {
-                            return 'Địa chỉ là bắt buộc!';
-                          }
-                          return null;
-                        }),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        TextFieldWidget('Công việc', jobController,
-                            (String? input) {
-                          if (input!.isEmpty) {
-                            return 'Công việc là bắt buộc!';
-                          }
-                          return null;
-                        }),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        TextFieldWidget('Công ty', companyController,
-                            (String? input) {
-                          if (input!.isEmpty) {
-                            return 'Công ty là bắt buộc!';
-                          }
-                          return null;
-                        }),
-                        const SizedBox(
                           height: 30,
                         ),
                         Obx(() => authController.isProfileUploading.value
@@ -304,15 +263,11 @@ class _ProfileSettingScreenState extends State<ProfileSettingScreen> {
                                 }
                                 authController.isProfileUploading(true);
 
-                                authController.storeUserInfo(
-                                  selectedImage, // Dùng ảnh mới (nếu có)
+                                authController.storeDriverInfo(
+                                  selectedImage,
                                   nameController.text,
                                   emailController.text,
-                                  homeController.text,
-                                  jobController.text,
-                                  companyController.text,
-                                  imageUrl:
-                                      profileImage, // Dùng ảnh cũ nếu không có ảnh mới
+                                  imageUrl: profileImage,
                                 );
                               })),
                         const SizedBox(

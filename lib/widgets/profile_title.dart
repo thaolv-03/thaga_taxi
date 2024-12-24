@@ -16,6 +16,7 @@ class ProfileTitle extends StatelessWidget {
     return Obx(
       () {
         final user = authController.userData;
+        print('USER: ${user}');
 
         if (user.isEmpty) {
           return Center(child: Text('Không tìm thấy thông tin người dùng'));
@@ -45,7 +46,7 @@ class ProfileTitle extends StatelessWidget {
                         image: profileImage.isNotEmpty
                             ? NetworkImage(profileImage)
                             : AssetImage('assets/person.png') as ImageProvider,
-                        fit: BoxFit.fill,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),

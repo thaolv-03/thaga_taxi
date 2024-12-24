@@ -1,9 +1,12 @@
 import 'package:fl_country_code_picker/fl_country_code_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:thaga_taxi/views/decision_screen/decision_screen.dart';
 import 'package:thaga_taxi/views/otp_verification_screen.dart';
 import 'package:thaga_taxi/widgets/login_widget.dart';
 import 'package:thaga_taxi/widgets/thaga_intro_widget.dart';
+
+import '../utils/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -32,7 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              thagaIntroWidget(),
+
+              thagaIntroWidget(isBackButton = true),
               const SizedBox(
                 height: 50,
               ),

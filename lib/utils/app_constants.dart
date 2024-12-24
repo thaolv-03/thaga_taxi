@@ -1,7 +1,7 @@
 class AppConstants {
   static const String helloNiceToMeetYou =
       'Xin chào, hân hạnh được phục vụ bạn!!';
-  static const String getMovingWithThagaTaxi = 'Tham gia cùng THAGA taxi';
+  static const String getMovingWithThagaTaxi = 'Tham gia cùng THAGA Taxi';
   static const String enterMobileNumber = 'Nhập số điện thoại của bạn!';
   static const String byCreating =
       'Bằng cách tạo một tài khoản, bạn đồng ý với chúng tôi ';

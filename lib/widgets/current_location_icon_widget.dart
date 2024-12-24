@@ -6,7 +6,7 @@ Widget buildCurrentLocationIcon(
     Future<void> Function() _moveToCurrentLocation) {
   return Align(
     child: Padding(
-      padding: const EdgeInsets.only(right: 15),
+      padding: const EdgeInsets.only(right: 20),
       child: InkWell(
         onTap: () async {
           await _moveToCurrentLocation();

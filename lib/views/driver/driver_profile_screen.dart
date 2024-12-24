@@ -4,11 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
 import 'package:thaga_taxi/utils/app_colors.dart';
+import 'package:thaga_taxi/views/driver/home_screen_driver.dart';
 import 'package:thaga_taxi/views/home_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/widgets/thaga_intro_widget.dart';
 
-class CustomerProfileScreen extends StatelessWidget {
+class DriverProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authController = Get.find<AuthController>();
@@ -16,20 +17,23 @@ class CustomerProfileScreen extends StatelessWidget {
     return Obx(() {
       final user = authController.userData;
       // authController.fetchUserData();
-      User? userr = FirebaseAuth.instance.currentUser;
-      String phoneNumber = userr?.phoneNumber ?? 'Không có số điện thoại';
+      User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (user.isEmpty) {
-        return Center(child: Text('Không tìm thấy thông tin người dùng'));
+        return Center(child: Text('Không tìm thấy thông tin tài xế'));
       }
 
       String avatarUrl = user['image'];
       String name = user['name'];
-      print("phone ${phoneNumber}");
+      String phoneNumber = currentUser?.phoneNumber ?? 'Không có số điện thoại';
       String email = user['email'];
-      String home = user['home'];
-      String job = user['job'];
-      String company = user['company'];
+      String country = user['country'];
+      String vehicleMake = user['vehicle_make'];
+      String vehicleModel = user['vehicle_model'];
+      String vehicleType = user['vehicle_type'] + ' chỗ';
+      String vehicleNumber = user['vehicle_number'];
+      String vehicleYear = user['vehicle_year'];
+      String vehicleColor = user['vehicle_color'];
 
       return Scaffold(
         backgroundColor: Colors.white,
@@ -38,19 +42,17 @@ class CustomerProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Background and Avatar
               Container(
                 height: Get.height * 0.44,
-                // color: Color(0xFF007BFF),
                 child: Stack(
                   children: [
-                    thagaIntroWidgetWithoutLogos("Hồ sơ khách hàng", ""),
+                    thagaIntroWidgetWithoutLogos("Hồ sơ tài xế", ""),
                     Positioned(
                       top: 60,
                       left: 30,
                       child: InkWell(
                         onTap: () {
-                          Get.off(() => HomeScreen());
+                          Get.off(() => HomeScreenDriver());
                         },
                         child: Container(
                           width: 45,
@@ -81,7 +83,7 @@ class CustomerProfileScreen extends StatelessWidget {
                                 image: avatarUrl.isNotEmpty
                                     ? NetworkImage(avatarUrl)
                                     : AssetImage('assets/person.png')
-                                        as ImageProvider,
+                                as ImageProvider,
                                 fit: BoxFit.cover,
                               ),
                               shape: BoxShape.circle,
@@ -105,7 +107,7 @@ class CustomerProfileScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text(
-                              'Khách hàng',
+                              'Tài xế',
                               style: GoogleFonts.inter(
                                 // color: Colors.white.withOpacity(0.8),
                                 color: AppColors.blackColor,
@@ -138,9 +140,13 @@ class CustomerProfileScreen extends StatelessWidget {
                     buildProfileItem(
                         'Số điện thoại', phoneNumber.replaceFirst('+84', '0')),
                     buildProfileItem('Email', email),
-                    buildProfileItem('Địa chỉ', home),
-                    buildProfileItem('Công việc', job),
-                    buildProfileItem('Công ty', company),
+                    buildProfileItem('Quốc gia', country),
+                    buildProfileItem('Hãng xe', vehicleMake),
+                    buildProfileItem('Mẫu xe', vehicleModel),
+                    buildProfileItem('Loại xe', vehicleType),
+                    buildProfileItem('Biển số xe', vehicleNumber),
+                    buildProfileItem('Năm sản xuất', vehicleYear),
+                    buildProfileItem('Màu xe', vehicleColor),
                     SizedBox(height: 30),
                     ElevatedButton(
                       onPressed: () async {

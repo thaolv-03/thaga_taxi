@@ -8,7 +8,9 @@ import 'package:here_sdk/core.dart';
 import 'package:here_sdk/core.engine.dart';
 import 'package:here_sdk/core.errors.dart';
 import 'package:thaga_taxi/controller/auth_controller.dart';
+import 'package:thaga_taxi/controller/booking_controller.dart';
 import 'package:thaga_taxi/firebase_options.dart';
+import 'package:thaga_taxi/views/decision_screen/decision_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 
 void main() async {
@@ -51,6 +53,7 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    Get.put(BookingController());
     AuthController authController = Get.put(AuthController());
     authController.decideRoute();
 
@@ -62,7 +65,7 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.interTextTheme(textTheme),
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: const LoginScreen(),
+      home: DecisionScreen(),
     );
   }
 }

@@ -18,7 +18,7 @@ class RouteSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 140, right: 20, left: 80),
+      margin: const EdgeInsets.only(top: 140, right: 20, left: 20),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       decoration: BoxDecoration(
         color: Colors.white,

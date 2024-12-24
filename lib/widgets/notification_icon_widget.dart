@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 Widget buildNotificationIcon() {
   return Align(
     child: Padding(
-      padding: const EdgeInsets.only(left: 15),
+      padding: const EdgeInsets.only(left: 20),
       child: CircleAvatar(
         radius: 25,
         backgroundColor: Colors.black12,

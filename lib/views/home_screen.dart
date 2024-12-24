@@ -13,16 +13,20 @@ import 'package:thaga_taxi/utils/app_colors.dart';
 import 'dart:ui' as ui;
 import 'package:geolocator/geolocator.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
+import 'package:thaga_taxi/views/trip_review_screen.dart';
 import 'package:thaga_taxi/widgets/notification_icon_widget.dart';
 
+import '../controller/booking_controller.dart';
 import '../widgets/bottom_sheet_widget.dart';
 import '../widgets/current_location_icon_widget.dart';
 import '../widgets/drawer_widget.dart';
+import '../widgets/driver_information_sheet_widget.dart';
 import '../widgets/driver_list_widget.dart';
 import '../widgets/payment_card_widget.dart';
 import '../widgets/profile_title.dart';
-import '../widgets/ride_confirm_sheet_widget.dart';
+import '../widgets/driver_confirm_sheet_widget.dart';
 import '../widgets/route_summary_card_widget.dart';
+import '../widgets/search_driver_sheet_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,8 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _title = "";
   String _sourceAddress = "Đang tải vị trí hiện tại...";
   String focusedField = "destination";
-  double _sheetChildSize = 0.6;
-  double _sheetRideConfirmChildSize = 0.37;
+
   bool showSourceField = true;
   bool isSourceFocused = false;
   bool isDestinationFocused = false;
@@ -57,13 +60,23 @@ class _HomeScreenState extends State<HomeScreen> {
   bool showRouteSummary = false;
 
   double pricePerKm4Seats = 14000; // 15k cho xe 4 chỗ
-  double pricePerKm4SeatsHC = 16000; // 15k cho xe 4 chỗ cao cấp
-  double pricePerKm7Seats = 18000; // 20k cho xe 7 chỗ
-  double pricePerKm7SeatsHC = 20000; // 20k cho xe 7 chỗ cao cấp
+  double pricePerKm5Seats = 16000; // 15k cho xe 4 chỗ cao cấp
+  double pricePerKm6Seats = 18000; // 20k cho xe 7 chỗ
+  double pricePerKm7Seats = 20000; // 20k cho xe 7 chỗ cao cấp
 
-  bool showRideConfirmSheet = false;
+  double _sheetChildSize = 0.6;
+  double _sheetDriverConfirmChildSize = 0.37;
+  double _searchDriverSheetChildSize = 0.37;
+  double _driverInformationSheetChildSize = 0.37;
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool showDriverConfirmSheet = false;
+  bool showSearchDriverSheet = false;
+  String userDriverId = '';
+  bool isDriverArrived = false;
+  bool isDriverMoved = false;
+  bool isDriverFinished = false;
+  bool showDriverInformationSheet = false;
+  Booking? dataBooking;
 
   @override
   void initState() {
@@ -597,7 +610,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       driverOptions = [
         {
-          "title": "Nhanh chóng",
+          "title": "Tiêu chuẩn",
           "price": (distance * pricePerKm4Seats).toInt(),
           "seats": "4 người",
         },
@@ -607,15 +620,15 @@ class _HomeScreenState extends State<HomeScreen> {
           "seats": "7 người",
         },
         {
-          "title": "Tiện lợi - Cao cấp",
-          "price": (distance * pricePerKm4SeatsHC).toInt(),
-          "seats": "4 người",
+          "title": "Nhanh chóng",
+          "price": (distance * pricePerKm5Seats).toInt(),
+          "seats": "5 người",
         },
         {
-          "title": "Rộng rãi - Cao cấp",
-          "price": (distance * pricePerKm7SeatsHC).toInt(),
-          "seats": "7 người",
-        }
+          "title": "Tiện lợi",
+          "price": (distance * pricePerKm6Seats).toInt(),
+          "seats": "6 người",
+        },
       ];
     });
   }
@@ -722,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _changeSheetSize(0.37);
                   showRouteSummary = true;
-                  showRideConfirmSheet = true;
+                  showDriverConfirmSheet = true;
                 });
               } else {
                 print("Vui lòng chọn cả điểm đón và điểm đến!");
@@ -733,49 +746,56 @@ class _HomeScreenState extends State<HomeScreen> {
             buildCurrentLocationIcon:
                 buildCurrentLocationIcon(_moveToCurrentLocation),
           ),
-          if (showRideConfirmSheet)
-            buildDraggableRideConfirmSheet(
-              _sheetRideConfirmChildSize,
-              showRideConfirmSheet,
+          if (showDriverConfirmSheet)
+            buildDraggableDriverConfirmSheet(
+              _sheetDriverConfirmChildSize,
+              showDriverConfirmSheet,
+              showSearchDriverSheet,
               buildDriverList,
               buildPaymentCardWidget,
               () {
                 setState(() {
-                  showRideConfirmSheet = false;
-                  showRouteSummary = false; // Update state in parent widget
+                  showDriverConfirmSheet = false;
+                  showRouteSummary = false;
+                });
+              },
+              source: _sourceGeoCoordinates!,
+              destination: _destinationGeoCoordinates!,
+              updateSearchDriverSheetState: (bool isSearchDriverVisible) {
+                setState(() {
+                  showSearchDriverSheet = isSearchDriverVisible;
+                });
+              },
+              updateDriverInformationSheetState:
+                  (Booking booking, bool isDriverInformationVisible, String driverId, bool arrived, bool moved, bool finished) {
+                setState(() {
+                  showDriverInformationSheet = isDriverInformationVisible;
+                  userDriverId = driverId;
+                  isDriverArrived = arrived;
+                  isDriverMoved = moved;
+                  isDriverFinished = finished;
+                  dataBooking = booking;
+
+                  if (isDriverFinished) {
+                    Get.to(() => TripReviewScreen(driverId: userDriverId, checkBooking: dataBooking!,)); // Hoặc sử dụng Navigator.push()
+                  }
                 });
               },
             ),
-          ProfileTitle(scaffoldKey: _scaffoldKey),
-          Positioned(
-            top: 140,
-            left: 20,
-            child: InkWell(
-              onTap: () {
-                Get.off(() => LoginScreen());
-              },
-              child: Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      spreadRadius: 4,
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.arrow_back,
-                  color: AppColors.blueColor,
-                  size: 26,
-                ),
-              ),
+          if (showSearchDriverSheet)
+            buildSearchDriverSheet(
+              _searchDriverSheetChildSize,
             ),
-          ),
+          if (showDriverInformationSheet)
+            DriverInformationSheet(
+              initialChildSize: _driverInformationSheetChildSize,
+              driverId: userDriverId,
+              isArrived: isDriverArrived,
+              isMoved: isDriverMoved,
+            ),
+
+          ProfileTitle(scaffoldKey: _scaffoldKey),
+
           if (showRouteSummary)
             Align(
               alignment: Alignment.topCenter,

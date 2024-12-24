@@ -7,10 +7,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:thaga_taxi/views/customer_profile_screen.dart';
+import 'package:thaga_taxi/views/driver/car_registration/car_registration_template.dart';
+import 'package:thaga_taxi/views/driver/home_screen_driver.dart';
 import 'package:thaga_taxi/views/home_screen.dart';
 import 'package:thaga_taxi/views/login_screen.dart';
 import 'package:thaga_taxi/views/profile_setting.dart';
 import 'package:path/path.dart' as Path;
+
+import '../views/driver/driver_profile_setup.dart';
 
 class AuthController extends GetxController {
   String userUid = '';
@@ -23,6 +27,8 @@ class AuthController extends GetxController {
 
   var isProfileUploading = false.obs;
   var phoneNumber = ''.obs;
+
+  bool isLoginAsDriver = false;
 
   phoneAuth(String phone) async {
     try {
@@ -113,17 +119,32 @@ class AuthController extends GetxController {
 
     if (user != null) {
       await fetchUserData();
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get()
-          .then((onValue) {
-        if (onValue.exists) {
-          Get.to(() => HomeScreen());
-        } else {
-          Get.to(() => ProfileSettingScreen());
-        }
-      }).catchError((e) {
+      print('isLoginAsDrive: ${isLoginAsDriver}');
+      FirebaseFirestore.instance.collection('users').doc(user.uid).get().then(
+        (onValue) {
+          if (isLoginAsDriver) {
+            // print('isLoginAsDrive: ${isLoginAsDriver}');
+            if (onValue.exists) {
+              print("Driver Home Screen");
+              Get.offAll(() => HomeScreenDriver());
+            } else {
+              Get.offAll(() => DriverProfileSetup());
+            }
+          } else {
+            if (onValue.exists) {
+              bool isDriver = onValue['isDriver'] ?? false;
+              if (isDriver) {
+                Get.offAll(() => HomeScreenDriver());
+              } else {
+                Get.offAll(() => HomeScreen());
+              }
+            } else {
+              print('isLoginAsDrive: ${isLoginAsDriver}');
+              Get.offAll(() => ProfileSettingScreen());
+            }
+          }
+        },
+      ).catchError((e) {
         log('Error fetching user data: $e');
       });
     } else {
@@ -156,6 +177,7 @@ class AuthController extends GetxController {
   }) async {
     try {
       String? uploadedImageUrl;
+      String? phoneNumber = FirebaseAuth.instance.currentUser?.phoneNumber;
 
       // Kiểm tra nếu có ảnh mới, tải ảnh lên Firebase Storage
       if (selectedImage != null) {
@@ -180,7 +202,9 @@ class AuthController extends GetxController {
         'home': home,
         'job': job,
         'company': company,
-        'image': uploadedImageUrl, // Dùng URL ảnh mới hoặc cũ
+        'image': uploadedImageUrl,
+        'phoneNumber': phoneNumber,
+        'isDriver': false,// Dùng URL ảnh mới hoặc cũ
       });
 
       Get.snackbar('Thành công', 'Thông tin đã được cập nhật!');
@@ -189,6 +213,99 @@ class AuthController extends GetxController {
     } finally {
       isProfileUploading(false);
       Get.to(() => HomeScreen());
+    }
+  }
+
+  Future<void> storeDriverInfo(
+    File? selectedImage,
+    String name,
+    String email, {
+    String? imageUrl, // URL ảnh cũ
+  }) async {
+    try {
+      String? uploadedImageUrl;
+      String? phoneNumber = FirebaseAuth.instance.currentUser?.phoneNumber;
+
+      // Kiểm tra nếu có ảnh mới, tải ảnh lên Firebase Storage
+      if (selectedImage != null) {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('driver_images')
+            .child('${FirebaseAuth.instance.currentUser!.uid}.jpg');
+        await ref.putFile(selectedImage);
+        uploadedImageUrl = await ref.getDownloadURL();
+      } else {
+        // Sử dụng ảnh cũ nếu không có ảnh mới
+        uploadedImageUrl = imageUrl;
+      }
+
+      // Cập nhật thông tin người dùng trong Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .set({
+        'name': name,
+        'email': email,
+        'image': uploadedImageUrl,
+        'phoneNumber': phoneNumber,
+        'isDriver': true,
+      }, SetOptions(merge: true));
+
+      // Kiểm tra trạng thái đăng ký xe và điều hướng
+      await handleDriverNavigation();
+
+      Get.snackbar('Thành công', 'Thông tin đã được cập nhật!');
+    } catch (e) {
+      Get.snackbar('Lỗi', 'Không thể lưu thông tin: $e');
+    } finally {
+      isProfileUploading(false);
+    }
+  }
+
+  Future<void> handleDriverNavigation() async {
+    String uid = FirebaseAuth.instance.currentUser!.uid;
+
+    // Kiểm tra trạng thái đăng ký xe
+    bool hasCarRegistered = await checkCarRegistrationStatus();
+
+    if (hasCarRegistered) {
+      // Nếu đã đăng ký xe, điều hướng đến HomeScreenDriver
+      Get.offAll(() => HomeScreenDriver());
+    } else {
+      // Nếu chưa đăng ký xe, điều hướng đến CarRegistrationTemplate
+      Get.offAll(() => CarRegistrationTemplate());
+    }
+  }
+
+  Future<bool> checkCarRegistrationStatus() async {
+    try {
+      String uid = FirebaseAuth.instance.currentUser!.uid;
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (userDoc.exists) {
+        return userDoc['hasCarRegistration'] ?? false;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print('Error checking car registration status: $e');
+      return false;
+    }
+  }
+
+  Future<bool> uploadCarEntry(Map<String, dynamic> carData) async {
+    try {
+      String uid = FirebaseAuth.instance.currentUser!.uid;
+
+      // Lưu thông tin xe và cập nhật trạng thái
+      await FirebaseFirestore.instance.collection('users').doc(uid).set(
+          {...carData, 'hasCarRegistration': true, 'verified': false}, SetOptions(merge: true));
+
+      return true;
+    } catch (e) {
+      print('Error uploading car entry: $e');
+      return false;
     }
   }
 

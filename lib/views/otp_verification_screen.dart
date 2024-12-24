@@ -31,7 +31,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           children: [
             Stack(
               children: [
-                thagaIntroWidget(),
+                thagaIntroWidget(isBackButton = false),
                 Positioned(
                   top: 60,
                   right: 25,
